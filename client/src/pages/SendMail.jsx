@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useCustomerStore from "../store/useCustomerStore";
 import AppSidebar from "../components/AppSidebar";
+import Paginator from "../components/Paginator";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -12,13 +13,23 @@ import { Checkbox } from "primereact/checkbox";
 export default function SendMail() {
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
-  /* ================= PAGINATION ================= */
-  const [page, setPage] = useState(0);
+  /* ================= PAGINATION (THEO MONGOOSEBASE) ================= */
+  const [page, setPage] = useState(1); // 1-based
   const [rows, setRows] = useState(5);
 
+  const paginatorProps = Paginator({
+    page,
+    rows,
+    total,
+    onChange: ({ page, rows }) => {
+      setPage(page);
+      setRows(rows);
+    },
+  });
+
   /* ================= GLOBAL SELECTION ================= */
-  const [sendToAll, setSendToAll] = useState(false); // chọn toàn DB
-  const [selectedIds, setSelectedIds] = useState([]); // ID toàn cục
+  const [sendToAll, setSendToAll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   /* ================= FORM ================= */
   const [subject, setSubject] = useState("");
@@ -28,12 +39,12 @@ export default function SendMail() {
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    fetchCustomers(page + 1, rows);
+    fetchCustomers(page, rows); // Mongo quyết định data
   }, [page, rows, fetchCustomers]);
 
   /* ================= MAP SELECTION CHO TABLE ================= */
   const selectedRows = useMemo(() => {
-    if (sendToAll) return customers; // hiển thị tick hết trang
+    if (sendToAll) return customers;
     return customers.filter((c) => selectedIds.includes(c._id));
   }, [customers, selectedIds, sendToAll]);
 
@@ -66,13 +77,12 @@ export default function SendMail() {
       return;
     }
 
-    if (sendToAll) {
-      alert(`Đã gửi email đến TOÀN BỘ ${total} khách hàng`);
-    } else {
-      alert(`Đã gửi email đến ${selectedIds.length} khách hàng`);
-    }
+    alert(
+      sendToAll
+        ? `Đã gửi email đến TOÀN BỘ ${total} khách hàng`
+        : `Đã gửi email đến ${selectedIds.length} khách hàng`
+    );
 
-    // reset
     setSubject("");
     setContent("");
     setSelectedIds([]);
@@ -125,31 +135,22 @@ export default function SendMail() {
         <Button label="Send Email" icon="pi pi-send" onClick={handleSend} />
       </div>
 
-      {/* ===== TABLE (OPTIONAL MANUAL SELECT) ===== */}
+      {/* ===== TABLE ===== */}
       {!sendToAll && (
         <DataTable
           value={customers}
           dataKey="_id"
-          lazy
-          paginator
-          totalRecords={total}
-          rows={rows}
-          first={page * rows}
           loading={loading}
-          onPage={(e) => {
-            setPage(e.page);
-            setRows(e.rows);
-          }}
+          {...paginatorProps}
           selection={selectedRows}
           onSelectionChange={handleSelectionChange}
-          emptyMessage="Chưa có khách hàng"
         >
           <Column selectionMode="multiple" style={{ width: "3rem" }} />
 
           <Column
             header="STT"
             body={(_, options) =>
-              page * rows + options.rowIndex + 1
+              (page - 1) * rows + options.rowIndex + 1
             }
             style={{ width: "80px", textAlign: "center" }}
           />

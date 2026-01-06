@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../store/useAuthStore";
 import useCustomerStore from "../store/useCustomerStore";
 import AppSidebar from "../components/AppSidebar";
+import Paginator from "../components/Paginator";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -29,42 +30,26 @@ export default function Customers() {
     deleteCustomer,
   } = useCustomerStore();
 
-  /* ================= Validate ================= */
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    // NAME
-    if (!form.name || !form.name.trim()) {
-      newErrors.name = "Tên không được để trống";
-    } else if (form.name.trim().length < 2) {
-      newErrors.name = "Tên phải có ít nhất 2 ký tự";
-    }
-
-    // EMAIL
-    if (!form.email || !form.email.trim()) {
-      newErrors.email = "Email không được để trống";
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email)) {
-        newErrors.email = "Email không đúng định dạng";
-      }
-    }
-
-    setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0;
-  };
-
-  /* ================= STATE ================= */
-  const [visible, setVisible] = useState(false);
-
-  const [visibleLeft, setVisibleLeft] = useState(false);
-  const [page, setPage] = useState(0);
+  /* ================= PAGINATION ================= */
+  // 🔑 page luôn là 1-based (THEO MONGOOSEBASE)
+  const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
 
+  const paginatorProps = Paginator({
+    page,
+    rows,
+    total,
+    onChange: ({ page, rows }) => {
+      setPage(page);
+      setRows(rows);
+    },
+  });
+
+  /* ================= UI STATE ================= */
+  const [visible, setVisible] = useState(false);
+  const [visibleLeft, setVisibleLeft] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
     name: "",
@@ -74,22 +59,43 @@ export default function Customers() {
 
   /* ================= GUARD LOGIN ================= */
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate("/");
-    }
+    if (!isLoggedIn) navigate("/");
   }, [isLoggedIn, navigate]);
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchCustomers(page + 1, rows);
-    }
+    if (!isLoggedIn) return;
+    fetchCustomers(page, rows); // ⬅️ Mongo quyết định dữ liệu
   }, [isLoggedIn, page, rows, fetchCustomers]);
+
+  /* ================= VALIDATE ================= */
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!form.name?.trim()) {
+      newErrors.name = "Tên không được để trống";
+    } else if (form.name.trim().length < 2) {
+      newErrors.name = "Tên phải có ít nhất 2 ký tự";
+    }
+
+    if (!form.email?.trim()) {
+      newErrors.email = "Email không được để trống";
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        newErrors.email = "Email không đúng định dạng";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   /* ================= HANDLERS ================= */
   const openAdd = () => {
     setEditingCustomer(null);
     setForm({ name: "", email: "", phone: "" });
+    setErrors({});
     setVisible(true);
   };
 
@@ -100,6 +106,7 @@ export default function Customers() {
       email: customer.email || "",
       phone: customer.phone || "",
     });
+    setErrors({});
     setVisible(true);
   };
 
@@ -113,9 +120,7 @@ export default function Customers() {
     }
 
     setVisible(false);
-    setErrors({});
-    setPage(0);
-    // fetchCustomers(1, rows);
+    setPage(1); // quay về trang đầu
   };
 
   const confirmDelete = (customer) => {
@@ -127,8 +132,7 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
-        setPage(0);
-        // fetchCustomers(1, rows);
+        setPage(1);
       },
     });
   };
@@ -140,14 +144,12 @@ export default function Customers() {
       <p>
         Xin chào: <b>{user?.email}</b>
       </p>
-      {/* ================= Sidebar ================= */}
 
       <Button
         icon="pi pi-bars"
         className="mb-3"
         onClick={() => setVisibleLeft(true)}
       />
-
       <AppSidebar visible={visibleLeft} onHide={() => setVisibleLeft(false)} />
 
       <Button
@@ -156,29 +158,26 @@ export default function Customers() {
         className="p-button-text mb-3"
         onClick={logout}
       />
+
       <div className="mb-3">
         <Button label="Add Customer" icon="pi pi-plus" onClick={openAdd} />
       </div>
+
+      {/* ================= TABLE ================= */}
       <DataTable
         value={customers}
-        lazy
-        paginator
-        totalRecords={total}
-        rows={rows}
-        first={page * rows}
-        onPage={(e) => {
-          setPage(e.page);
-          setRows(e.rows);
-        }}
         loading={loading}
-        tableStyle={{ minWidth: "50rem" }}
+        {...paginatorProps}
         emptyMessage="Chưa có khách hàng"
       >
         <Column
           header="STT"
-          body={(_, options) => page * rows + options.rowIndex + 1}
+          body={(_, options) =>
+            (page - 1) * rows + options.rowIndex + 1
+          }
           style={{ width: "80px", textAlign: "center" }}
         />
+
         <Column field="name" header="Name" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Phone" />
@@ -202,7 +201,8 @@ export default function Customers() {
           )}
         />
       </DataTable>
-      {/* ===== Dialog Add / Edit ===== */}
+
+      {/* ================= DIALOG ================= */}
       <Dialog
         header={editingCustomer ? "Edit Customer" : "Add Customer"}
         visible={visible}
@@ -215,12 +215,13 @@ export default function Customers() {
             <InputText
               value={form.name}
               className={errors.name ? "p-invalid" : ""}
-              onChange={(e) => {
-                setForm({ ...form, name: e.target.value });
-                setErrors({ ...errors, name: null });
-              }}
+              onChange={(e) =>
+                setForm({ ...form, name: e.target.value })
+              }
             />
-            {errors.name && <small className="p-error">{errors.name}</small>}
+            {errors.name && (
+              <small className="p-error">{errors.name}</small>
+            )}
           </div>
 
           <div className="field mb-3">
@@ -228,26 +229,29 @@ export default function Customers() {
             <InputText
               value={form.email}
               className={errors.email ? "p-invalid" : ""}
-              onChange={(e) => {
-                setForm({ ...form, email: e.target.value });
-                setErrors({ ...errors, email: null });
-              }}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
             />
-            {errors.email && <small className="p-error">{errors.email}</small>}
+            {errors.email && (
+              <small className="p-error">{errors.email}</small>
+            )}
           </div>
 
           <div className="field mb-3">
             <label>Phone</label>
             <InputText
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, phone: e.target.value })
+              }
             />
           </div>
 
           <Button label="Save" icon="pi pi-check" onClick={handleSubmit} />
         </div>
       </Dialog>
-      {/* ===== Confirm Delete ===== */}
+
       <ConfirmDialog />
     </div>
   );
