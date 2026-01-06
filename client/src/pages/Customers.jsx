@@ -61,7 +61,7 @@ export default function Customers() {
   const [visible, setVisible] = useState(false);
 
   const [visibleLeft, setVisibleLeft] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [rows, setRows] = useState(5);
 
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -82,7 +82,7 @@ export default function Customers() {
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     if (isLoggedIn) {
-      fetchCustomers(page, rows);
+      fetchCustomers(page + 1, rows);
     }
   }, [isLoggedIn, page, rows, fetchCustomers]);
 
@@ -114,8 +114,8 @@ export default function Customers() {
 
     setVisible(false);
     setErrors({});
-    setPage(1);
-    fetchCustomers(1, rows);
+    setPage(0);
+    // fetchCustomers(1, rows);
   };
 
   const confirmDelete = (customer) => {
@@ -127,8 +127,8 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
-        setPage(1);
-        fetchCustomers(1, rows);
+        setPage(0);
+        // fetchCustomers(1, rows);
       },
     });
   };
@@ -165,9 +165,9 @@ export default function Customers() {
         paginator
         totalRecords={total}
         rows={rows}
-        first={(page - 1) * rows}
+        first={page * rows}
         onPage={(e) => {
-          setPage(e.page + 1);
+          setPage(e.page);
           setRows(e.rows);
         }}
         loading={loading}
@@ -176,7 +176,7 @@ export default function Customers() {
       >
         <Column
           header="STT"
-          body={(_, options) => (page - 1) * rows + options.rowIndex + 1}
+          body={(_, options) => page * rows + options.rowIndex + 1}
           style={{ width: "80px", textAlign: "center" }}
         />
         <Column field="name" header="Name" />

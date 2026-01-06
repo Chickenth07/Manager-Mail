@@ -13,7 +13,7 @@ export default function SendMail() {
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
   /* ================= PAGINATION ================= */
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [rows, setRows] = useState(5);
 
   /* ================= GLOBAL SELECTION ================= */
@@ -28,7 +28,7 @@ export default function SendMail() {
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    fetchCustomers(page, rows);
+    fetchCustomers(page + 1, rows);
   }, [page, rows, fetchCustomers]);
 
   /* ================= MAP SELECTION CHO TABLE ================= */
@@ -134,10 +134,10 @@ export default function SendMail() {
           paginator
           totalRecords={total}
           rows={rows}
-          first={(page - 1) * rows}
+          first={page * rows}
           loading={loading}
           onPage={(e) => {
-            setPage(e.page + 1);
+            setPage(e.page);
             setRows(e.rows);
           }}
           selection={selectedRows}
@@ -149,7 +149,7 @@ export default function SendMail() {
           <Column
             header="STT"
             body={(_, options) =>
-              (page - 1) * rows + options.rowIndex + 1
+              page * rows + options.rowIndex + 1
             }
             style={{ width: "80px", textAlign: "center" }}
           />

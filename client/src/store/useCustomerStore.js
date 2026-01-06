@@ -5,7 +5,7 @@ const useCustomerStore = create((set) => ({
   total: 0,
   loading: false,
 
-  fetchCustomers: async (page = 1, limit = 5) => {
+  fetchCustomers: async (page = 0, limit = 5) => {
     set({ loading: true });
 
     const res = await fetch(
