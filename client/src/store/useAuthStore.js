@@ -19,10 +19,15 @@ const useAuthStore = create((set) => ({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message);
+        // ❗ login sai → trả lỗi về cho component
+        return {
+          success: false,
+          message: data.message || "Login failed",
+          errors: data.errors,
+        };
       }
 
-      // 👉 Lưu user
+      // 👉 Login thành công
       localStorage.setItem("user", JSON.stringify(data.user));
 
       set({
@@ -30,11 +35,15 @@ const useAuthStore = create((set) => ({
         isLoggedIn: true,
         loading: false,
       });
+
+      return { success: true };
     } catch (err) {
-      set({
-        error: err.message,
-        loading: false,
-      });
+      return {
+        success: false,
+        message: err.message || "Server error",
+      };
+    } finally {
+      set({ loading: false });
     }
   },
 

@@ -1,31 +1,21 @@
 import express from "express";
 import User from "../models/User.js";
+import { loginSchema } from "../schemas/auth.schema.js";
+import { validate } from "../middlewares/validate.js";
 
 const router = express.Router();
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+router.post("/login", validate(loginSchema), async (req, res) => {
+  const { email, password } = req.validatedBody;
 
-  if (!email || !password) {
-    return res.status(400).json({
-      message: "Email và password là bắt buộc",
-    });
-  }
-
-  const user = await User.findOne({
-    where: { email },
-  });
+  const user = await User.findOne({ where: { email } });
 
   if (!user) {
-    return res.status(401).json({
-      message: "Email không tồn tại",
-    });
+    return res.status(401).json({ message: "Email không tồn tại" });
   }
 
   if (user.password !== password) {
-    return res.status(401).json({
-      message: "Sai mật khẩu",
-    });
+    return res.status(401).json({ message: "Sai mật khẩu" });
   }
 
   res.json({

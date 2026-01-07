@@ -1,22 +1,48 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+
 import useAuthStore from "../store/useAuthStore";
+import { loginSchema } from "../schemas/loginSchema";
+
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, isLoggedIn, loading, error } = useAuthStore();
+  const { login, isLoggedIn, loading } = useAuthStore();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await login(email, password);
+  const onSubmit = async (data) => {
+    const result = await login(data.email, data.password);
+
+    if (result?.errors) {
+      // ❗ lỗi validate từ backend
+      result.errors.forEach((msg) => {
+        if (msg.toLowerCase().includes("email")) {
+          setError("email", { message: msg });
+        }
+        if (msg.toLowerCase().includes("password")) {
+          setError("password", { message: msg });
+        }
+      });
+    }
+
+    if (result?.message && !result?.errors && !result?.success) {
+      // ❗ lỗi logic (sai email / password)
+      setError("root", { message: result.message });
+    }
   };
 
-  // 👉 Login xong → vào customers
   useEffect(() => {
     if (isLoggedIn) {
       navigate("/customers");
@@ -27,40 +53,48 @@ export default function Login() {
     <div style={{ maxWidth: 400, margin: "80px auto" }}>
       <h2>Login</h2>
 
-      <form onSubmit={handleSubmit} className="flex flex-column gap-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-column gap-3">
         {/* EMAIL */}
         <div className="flex flex-column gap-1">
           <InputText
-            id="email"
             placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={error ? "p-invalid" : ""}
+            {...register("email")}
+            className={errors.email ? "p-invalid" : ""}
           />
+          <div>
+            {errors.email && (
+              <small className="p-error">{errors.email.message}</small>
+            )}
+          </div>
         </div>
 
         {/* PASSWORD */}
         <div className="flex flex-column gap-1">
           <InputText
-            id="password"
             type="password"
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={error ? "p-invalid" : ""}
+            {...register("password")}
+            className={errors.password ? "p-invalid" : ""}
           />
+          <div>
+            {errors.password && (
+              <small className="p-error">{errors.password.message}</small>
+            )}
+          </div>
         </div>
 
-        {/* ERROR */}
-        <div>{error && <small className="p-error">{error}</small>}</div>
+        {/* ERROR CHUNG */}
+        <div>
+          {errors.root && (
+            <small className="p-error">{errors.root.message}</small>
+          )}
+        </div>
 
-        {/* BUTTON */}
         <Button
           type="submit"
           label={loading ? "Logging in..." : "Login"}
           loading={loading}
           disabled={loading}
-          className="mt-2"
         />
       </form>
     </div>
