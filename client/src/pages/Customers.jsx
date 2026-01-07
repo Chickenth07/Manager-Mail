@@ -111,15 +111,16 @@ export default function Customers() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
+  
     if (editingCustomer) {
       await updateCustomer(editingCustomer._id, form);
     } else {
       await addCustomer(form);
     }
-
+  
     setVisible(false);
-    setPage(1); // quay về trang đầu
+  
+    await fetchCustomers(page, rows);
   };
 
   const confirmDelete = (customer) => {
