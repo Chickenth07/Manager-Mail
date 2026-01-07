@@ -13,7 +13,7 @@ import { Checkbox } from "primereact/checkbox";
 export default function SendMail() {
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
-  /* ================= PAGINATION (THEO MONGOOSEBASE) ================= */
+  /* ================= PAGINATION ================= */
   const [page, setPage] = useState(1); // 1-based
   const [rows, setRows] = useState(5);
 
@@ -39,16 +39,15 @@ export default function SendMail() {
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    fetchCustomers(page, rows); // Mongo quyết định data
+    fetchCustomers(page, rows);
   }, [page, rows, fetchCustomers]);
 
-  /* ================= MAP SELECTION CHO TABLE ================= */
+  /* ================= MAP SELECTION FOR TABLE ================= */
   const selectedRows = useMemo(() => {
-    if (sendToAll) return customers;
     return customers.filter((c) => selectedIds.includes(c._id));
-  }, [customers, selectedIds, sendToAll]);
+  }, [customers, selectedIds]);
 
-  /* ================= HANDLE SELECT IN TABLE ================= */
+  /* ================= HANDLE SELECTION ================= */
   const handleSelectionChange = (e) => {
     const pageIds = customers.map((c) => c._id);
     const newIdsInPage = e.value.map((c) => c._id);
@@ -59,20 +58,19 @@ export default function SendMail() {
     });
   };
 
-  /* ================= Count send customer ================= */
+  /* ================= COUNT ================= */
   const selectedCount = useMemo(() => {
     return sendToAll ? total : selectedIds.length;
   }, [sendToAll, selectedIds, total]);
 
+  /* ================= SELECT ALL ================= */
   const toggleSelectAllDB = () => {
     setSendToAll((prev) => {
       const next = !prev;
 
       if (next) {
-        // ✅ chọn tất cả khách hiện có
         setSelectedIds(customers.map((c) => c._id));
       } else {
-        // ❌ bỏ chọn tất cả
         setSelectedIds([]);
       }
 
@@ -87,16 +85,12 @@ export default function SendMail() {
       return;
     }
 
-    if (!sendToAll && selectedIds.length === 0) {
-      alert("Vui lòng chọn khách hàng hoặc chọn gửi cho tất cả");
+    if (selectedCount === 0) {
+      alert("Vui lòng chọn ít nhất 1 khách hàng");
       return;
     }
 
-    alert(
-      sendToAll
-        ? `Đã gửi email đến TOÀN BỘ ${total} khách hàng`
-        : `Đã gửi email đến ${selectedIds.length} khách hàng`
-    );
+    alert(`Đã gửi email đến ${selectedCount} khách hàng`);
 
     setSubject("");
     setContent("");
@@ -135,22 +129,27 @@ export default function SendMail() {
           />
         </div>
 
-        <Button label="Send Email" icon="pi pi-send" onClick={handleSend} />
+        <Button
+          label={`Send Email (${selectedCount})`}
+          icon="pi pi-send"
+          disabled={selectedCount === 0}
+          onClick={handleSend}
+        />
       </div>
 
-      {/* ===== SELECT ALL DB ===== */}
-      <div className="mb-3 flex align-items-center gap-2">
+      {/* ===== SELECT ALL ===== */}
+      <div className="mb-2 flex align-items-center gap-2">
         <Checkbox
           inputId="sendAll"
           checked={sendToAll}
           onChange={toggleSelectAllDB}
         />
         <label htmlFor="sendAll" className="cursor-pointer">
-          Gửi email cho <b>tất cả {total} khách hàng</b>
+          Gửi email cho tất cả khách hàng
         </label>
       </div>
 
-      <div className="mb-2">
+      <div className="mb-3">
         <span className="p-tag p-tag-success">
           Đã chọn {selectedCount} khách hàng
         </span>
@@ -169,7 +168,17 @@ export default function SendMail() {
 
         <Column
           header="STT"
-          body={(_, options) => (page - 1) * (rows - 5) + options.rowIndex + 1}
+          body={(_, options) =>{
+            if (rows === 5){
+              return (page - 1) * (rows - 5) + options.rowIndex + 1
+            } if (rows === 10) {
+              return (page - 1) * (rows - 10) + options.rowIndex + 1
+            } if (rows === 20) {
+              return (page - 1) * (rows - 20) + options.rowIndex + 1
+            } else {
+              return (page - 1) * (rows - 50) + options.rowIndex + 1
+            }
+          }}
           style={{ width: "80px", textAlign: "center" }}
         />
 

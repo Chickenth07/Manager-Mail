@@ -30,8 +30,8 @@ export default function Customers() {
     deleteCustomer,
   } = useCustomerStore();
 
-  /* ================= PAGINATION ================= */
-  const [page, setPage] = useState(1);
+  /* ================= PAGINATION (GIỐNG SENDMAIL) ================= */
+  const [page, setPage] = useState(1); // 1-based
   const [rows, setRows] = useState(5);
 
   const paginatorProps = Paginator({
@@ -61,10 +61,10 @@ export default function Customers() {
     if (!isLoggedIn) navigate("/");
   }, [isLoggedIn, navigate]);
 
-  /* ================= LOAD DATA ================= */
+  /* ================= LOAD DATA (LAZY – GIỐNG SENDMAIL) ================= */
   useEffect(() => {
     if (!isLoggedIn) return;
-    fetchCustomers(page, rows); // ⬅️ Mongo quyết định dữ liệu
+    fetchCustomers(page, rows);
   }, [isLoggedIn, page, rows, fetchCustomers]);
 
   /* ================= VALIDATE ================= */
@@ -111,15 +111,14 @@ export default function Customers() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-  
+
     if (editingCustomer) {
       await updateCustomer(editingCustomer._id, form);
     } else {
       await addCustomer(form);
     }
-  
+
     setVisible(false);
-  
     await fetchCustomers(page, rows);
   };
 
@@ -132,8 +131,7 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
-        await fetchCustomers(1, rows);
-        setPage(1);
+        setPage(1); // useEffect sẽ tự fetch lại
       },
     });
   };
@@ -164,7 +162,7 @@ export default function Customers() {
         <Button label="Add Customer" icon="pi pi-plus" onClick={openAdd} />
       </div>
 
-      {/* ================= TABLE ================= */}
+      {/* ================= TABLE (GIỐNG SENDMAIL) ================= */}
       <DataTable
         value={customers}
         loading={loading}
@@ -173,9 +171,17 @@ export default function Customers() {
       >
         <Column
           header="STT"
-          body={(_, options) =>
-            (page - 1) * (rows - 5) + options.rowIndex + 1
-          }
+          body={(_, options) =>{
+            if (rows === 5){
+              return (page - 1) * (rows - 5) + options.rowIndex + 1
+            } if (rows === 10) {
+              return (page - 1) * (rows - 10) + options.rowIndex + 1
+            } if (rows === 20) {
+              return (page - 1) * (rows - 20) + options.rowIndex + 1
+            } else {
+              return (page - 1) * (rows - 50) + options.rowIndex + 1
+            }
+          }}
           style={{ width: "80px", textAlign: "center" }}
         />
 
