@@ -150,7 +150,7 @@ export default function SendMail() {
           <Column
             header="STT"
             body={(_, options) =>
-              (page - 1) * rows + options.rowIndex + 1
+              (page - 1) * (rows - 5) + options.rowIndex + 1
             }
             style={{ width: "80px", textAlign: "center" }}
           />

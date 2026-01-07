@@ -31,7 +31,6 @@ export default function Customers() {
   } = useCustomerStore();
 
   /* ================= PAGINATION ================= */
-  // 🔑 page luôn là 1-based (THEO MONGOOSEBASE)
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
 
@@ -173,7 +172,7 @@ export default function Customers() {
         <Column
           header="STT"
           body={(_, options) =>
-            (page - 1) * rows + options.rowIndex + 1
+            (page - 1) * (rows - 5) + options.rowIndex + 1
           }
           style={{ width: "80px", textAlign: "center" }}
         />
