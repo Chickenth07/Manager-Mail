@@ -59,10 +59,25 @@ export default function SendMail() {
     });
   };
 
-  /* ================= SELECT ALL DB ================= */
+  /* ================= Count send customer ================= */
+  const selectedCount = useMemo(() => {
+    return sendToAll ? total : selectedIds.length;
+  }, [sendToAll, selectedIds, total]);
+
   const toggleSelectAllDB = () => {
-    setSendToAll((prev) => !prev);
-    setSelectedIds([]);
+    setSendToAll((prev) => {
+      const next = !prev;
+
+      if (next) {
+        // ✅ chọn tất cả khách hiện có
+        setSelectedIds(customers.map((c) => c._id));
+      } else {
+        // ❌ bỏ chọn tất cả
+        setSelectedIds([]);
+      }
+
+      return next;
+    });
   };
 
   /* ================= SEND MAIL (MOCK) ================= */
@@ -97,18 +112,6 @@ export default function SendMail() {
 
       <h2>Gửi email cho khách hàng</h2>
 
-      {/* ===== SELECT ALL DB ===== */}
-      <div className="mb-3 flex align-items-center gap-2">
-        <Checkbox
-          inputId="sendAll"
-          checked={sendToAll}
-          onChange={toggleSelectAllDB}
-        />
-        <label htmlFor="sendAll" className="cursor-pointer">
-          Gửi email cho <b>tất cả {total} khách hàng</b>
-        </label>
-      </div>
-
       {/* ===== FORM ===== */}
       <div className="mb-4">
         <div className="field mb-3">
@@ -135,31 +138,45 @@ export default function SendMail() {
         <Button label="Send Email" icon="pi pi-send" onClick={handleSend} />
       </div>
 
+      {/* ===== SELECT ALL DB ===== */}
+      <div className="mb-3 flex align-items-center gap-2">
+        <Checkbox
+          inputId="sendAll"
+          checked={sendToAll}
+          onChange={toggleSelectAllDB}
+        />
+        <label htmlFor="sendAll" className="cursor-pointer">
+          Gửi email cho <b>tất cả {total} khách hàng</b>
+        </label>
+      </div>
+
+      <div className="mb-2">
+        <span className="p-tag p-tag-success">
+          Đã chọn {selectedCount} khách hàng
+        </span>
+      </div>
+
       {/* ===== TABLE ===== */}
-      {!sendToAll && (
-        <DataTable
-          value={customers}
-          dataKey="_id"
-          loading={loading}
-          {...paginatorProps}
-          selection={selectedRows}
-          onSelectionChange={handleSelectionChange}
-        >
-          <Column selectionMode="multiple" style={{ width: "3rem" }} />
+      <DataTable
+        value={customers}
+        dataKey="_id"
+        loading={loading}
+        {...paginatorProps}
+        selection={selectedRows}
+        onSelectionChange={handleSelectionChange}
+      >
+        <Column selectionMode="multiple" style={{ width: "3rem" }} />
 
-          <Column
-            header="STT"
-            body={(_, options) =>
-              (page - 1) * (rows - 5) + options.rowIndex + 1
-            }
-            style={{ width: "80px", textAlign: "center" }}
-          />
+        <Column
+          header="STT"
+          body={(_, options) => (page - 1) * (rows - 5) + options.rowIndex + 1}
+          style={{ width: "80px", textAlign: "center" }}
+        />
 
-          <Column field="name" header="Name" />
-          <Column field="email" header="Email" />
-          <Column field="phone" header="Số điện thoại" />
-        </DataTable>
-      )}
+        <Column field="name" header="Name" />
+        <Column field="email" header="Email" />
+        <Column field="phone" header="Số điện thoại" />
+      </DataTable>
     </div>
   );
 }
