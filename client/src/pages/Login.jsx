@@ -24,25 +24,21 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     const result = await login(data.email, data.password);
-
-    if (result?.errors) {
-      // ❗ lỗi validate từ backend
-      result.errors.forEach((msg) => {
-        if (msg.toLowerCase().includes("email")) {
-          setError("email", { message: msg });
-        }
-        if (msg.toLowerCase().includes("password")) {
-          setError("password", { message: msg });
-        }
-      });
-    }
-
-    if (result?.message && !result?.errors && !result?.success) {
-      // ❗ lỗi logic (sai email / password)
-      setError("root", { message: result.message });
+  
+    if (!result?.success) {
+      const msg = result?.message?.toLowerCase() || "";
+  
+      if (msg.includes("email")) {
+        setError("email", { message: result.message });
+      } else if (msg.includes("mật khẩu") || msg.includes("password")) {
+        setError("password", { message: result.message });
+      } else {
+        // fallback (hiếm)
+        setError("root", { message: result.message });
+      }
     }
   };
-
+  
   useEffect(() => {
     if (isLoggedIn) {
       navigate("/customers");
@@ -81,13 +77,6 @@ export default function Login() {
               <small className="p-error">{errors.password.message}</small>
             )}
           </div>
-        </div>
-
-        {/* ERROR CHUNG */}
-        <div>
-          {errors.root && (
-            <small className="p-error">{errors.root.message}</small>
-          )}
         </div>
 
         <Button

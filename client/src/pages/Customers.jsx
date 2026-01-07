@@ -132,6 +132,7 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
+        await fetchCustomers(1, rows);
         setPage(1);
       },
     });
