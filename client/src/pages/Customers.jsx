@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../store/useAuthStore";
 import useCustomerStore from "../store/useCustomerStore";
-import AppSidebar from "../components/AppSidebar";
+import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
 import { DataTable } from "primereact/datatable";
@@ -17,7 +17,7 @@ export default function Customers() {
   const navigate = useNavigate();
 
   /* ================= AUTH ================= */
-  const { isLoggedIn, user, logout } = useAuthStore();
+  const { isLoggedIn } = useAuthStore();
 
   /* ================= STORE ================= */
   const {
@@ -30,8 +30,8 @@ export default function Customers() {
     deleteCustomer,
   } = useCustomerStore();
 
-  /* ================= PAGINATION (GIỐNG SENDMAIL) ================= */
-  const [page, setPage] = useState(1); // 1-based
+  /* ================= PAGINATION (1-BASED) ================= */
+  const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
 
   const paginatorProps = Paginator({
@@ -46,7 +46,6 @@ export default function Customers() {
 
   /* ================= UI STATE ================= */
   const [visible, setVisible] = useState(false);
-  const [visibleLeft, setVisibleLeft] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [errors, setErrors] = useState({});
 
@@ -61,7 +60,7 @@ export default function Customers() {
     if (!isLoggedIn) navigate("/");
   }, [isLoggedIn, navigate]);
 
-  /* ================= LOAD DATA (LAZY – GIỐNG SENDMAIL) ================= */
+  /* ================= LOAD DATA ================= */
   useEffect(() => {
     if (!isLoggedIn) return;
     fetchCustomers(page, rows);
@@ -71,13 +70,13 @@ export default function Customers() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!form.name?.trim()) {
+    if (!form.name.trim()) {
       newErrors.name = "Tên không được để trống";
     } else if (form.name.trim().length < 2) {
       newErrors.name = "Tên phải có ít nhất 2 ký tự";
     }
 
-    if (!form.email?.trim()) {
+    if (!form.email.trim()) {
       newErrors.email = "Email không được để trống";
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -119,7 +118,7 @@ export default function Customers() {
     }
 
     setVisible(false);
-    await fetchCustomers(page, rows);
+    setPage(1);
   };
 
   const confirmDelete = (customer) => {
@@ -131,38 +130,26 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
-        setPage(1); // useEffect sẽ tự fetch lại
+        setPage(1);
       },
     });
   };
 
   /* ================= UI ================= */
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Quản lý khách hàng</h2>
-      <p>
-        Xin chào: <b>{user?.email}</b>
-      </p>
+    <AdminLayout>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">
+          Quản lý khách hàng
+        </h2>
 
-      <Button
-        icon="pi pi-bars"
-        className="mb-3"
-        onClick={() => setVisibleLeft(true)}
-      />
-      <AppSidebar visible={visibleLeft} onHide={() => setVisibleLeft(false)} />
-
-      <Button
-        label="Logout"
-        icon="pi pi-sign-out"
-        className="p-button-text mb-3"
-        onClick={logout}
-      />
-
-      <div className="mb-3">
-        <Button label="Add Customer" icon="pi pi-plus" onClick={openAdd} />
+        <Button
+          label="Thêm khách hàng"
+          icon="pi pi-plus"
+          onClick={openAdd}
+        />
       </div>
 
-      {/* ================= TABLE (GIỐNG SENDMAIL) ================= */}
       <DataTable
         value={customers}
         loading={loading}
@@ -185,12 +172,12 @@ export default function Customers() {
           style={{ width: "80px", textAlign: "center" }}
         />
 
-        <Column field="name" header="Name" />
+        <Column field="name" header="Tên" />
         <Column field="email" header="Email" />
-        <Column field="phone" header="Phone" />
+        <Column field="phone" header="Số điện thoại" />
 
         <Column
-          header="Action"
+          header="Tính năng"
           body={(row) => (
             <div className="flex gap-2">
               <Button
@@ -211,14 +198,14 @@ export default function Customers() {
 
       {/* ================= DIALOG ================= */}
       <Dialog
-        header={editingCustomer ? "Edit Customer" : "Add Customer"}
+        header={editingCustomer ? "Cập nhật thông tin" : "Thêm khách hàng"}
         visible={visible}
         onHide={() => setVisible(false)}
         style={{ width: "30rem" }}
       >
         <div className="p-fluid">
           <div className="field mb-3">
-            <label>Name</label>
+            <label>Tên</label>
             <InputText
               value={form.name}
               className={errors.name ? "p-invalid" : ""}
@@ -246,7 +233,7 @@ export default function Customers() {
           </div>
 
           <div className="field mb-3">
-            <label>Phone</label>
+            <label>Số điện thoại</label>
             <InputText
               value={form.phone}
               onChange={(e) =>
@@ -255,11 +242,15 @@ export default function Customers() {
             />
           </div>
 
-          <Button label="Save" icon="pi pi-check" onClick={handleSubmit} />
+          <Button
+            label="Lưu"
+            icon="pi pi-check"
+            onClick={handleSubmit}
+          />
         </div>
       </Dialog>
 
       <ConfirmDialog />
-    </div>
+    </AdminLayout>
   );
 }

@@ -31,15 +31,15 @@ export default function Paginator({
       layout:
         "FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown",
       RowsPerPageDropdown: (optionsRender) => (
-        <div className="flex align-items-center gap-2">
-          <span>Tổng số: <b>{total}</b></span>
+        <div className="flex items-center gap-2">
+          <span>Tổng số: <b>{total}</b> bản ghi</span>
 
           <Dropdown
             value={rows}
             options={options}
             onChange={(e) =>
               onChange({
-                page: 1,       // 🔥 đổi rows thì quay về trang 1
+                page: 1,   
                 rows: e.value,
               })
             }

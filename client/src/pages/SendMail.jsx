@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+
 import useCustomerStore from "../store/useCustomerStore";
-import AppSidebar from "../components/AppSidebar";
+import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
 import { DataTable } from "primereact/datatable";
@@ -11,10 +12,11 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Checkbox } from "primereact/checkbox";
 
 export default function SendMail() {
-  const { customers, total, loading, fetchCustomers } = useCustomerStore();
+  const { customers, total, loading, fetchCustomers } =
+    useCustomerStore();
 
-  /* ================= PAGINATION ================= */
-  const [page, setPage] = useState(1); // 1-based
+  /* ================= PAGINATION (1-BASED) ================= */
+  const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
 
   const paginatorProps = Paginator({
@@ -27,7 +29,7 @@ export default function SendMail() {
     },
   });
 
-  /* ================= GLOBAL SELECTION ================= */
+  /* ================= SELECTION ================= */
   const [sendToAll, setSendToAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -35,26 +37,28 @@ export default function SendMail() {
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
 
-  const [visibleLeft, setVisibleLeft] = useState(false);
-
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     fetchCustomers(page, rows);
   }, [page, rows, fetchCustomers]);
 
-  /* ================= MAP SELECTION FOR TABLE ================= */
+  /* ================= MAP IDS -> ROWS ================= */
   const selectedRows = useMemo(() => {
-    return customers.filter((c) => selectedIds.includes(c._id));
+    return customers.filter((c) =>
+      selectedIds.includes(c._id)
+    );
   }, [customers, selectedIds]);
 
-  /* ================= HANDLE SELECTION ================= */
+  /* ================= HANDLE ROW SELECTION ================= */
   const handleSelectionChange = (e) => {
     const pageIds = customers.map((c) => c._id);
-    const newIdsInPage = e.value.map((c) => c._id);
+    const selectedInPage = e.value.map((c) => c._id);
 
     setSelectedIds((prev) => {
-      const keepIds = prev.filter((id) => !pageIds.includes(id));
-      return Array.from(new Set([...keepIds, ...newIdsInPage]));
+      const keep = prev.filter(
+        (id) => !pageIds.includes(id)
+      );
+      return Array.from(new Set([...keep, ...selectedInPage]));
     });
   };
 
@@ -63,7 +67,7 @@ export default function SendMail() {
     return sendToAll ? total : selectedIds.length;
   }, [sendToAll, selectedIds, total]);
 
-  /* ================= SELECT ALL ================= */
+  /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
     setSendToAll((prev) => {
       const next = !prev;
@@ -78,7 +82,7 @@ export default function SendMail() {
     });
   };
 
-  /* ================= SEND MAIL (MOCK) ================= */
+  /* ================= SEND (MOCK) ================= */
   const handleSend = () => {
     if (!subject || !content) {
       alert("Vui lòng nhập đầy đủ Subject và Content");
@@ -100,21 +104,20 @@ export default function SendMail() {
 
   /* ================= UI ================= */
   return (
-    <div style={{ padding: 20 }}>
-      <Button icon="pi pi-bars" onClick={() => setVisibleLeft(true)} />
-      <AppSidebar visible={visibleLeft} onHide={() => setVisibleLeft(false)} />
-
-      <h2>Gửi email cho khách hàng</h2>
+    <AdminLayout>
+      <h2 className="text-xl font-semibold mb-4">
+        Gửi email cho khách hàng
+      </h2>
 
       {/* ===== FORM ===== */}
-      <div className="mb-4">
+      <div className="mb-6 max-w-2xl">
         <div className="field mb-3">
           <label>Tiêu đề email</label>
           <InputText
             value={subject}
             placeholder="Tiêu đề"
             onChange={(e) => setSubject(e.target.value)}
-            style={{ width: "100%" }}
+            className="w-full"
           />
         </div>
 
@@ -125,12 +128,12 @@ export default function SendMail() {
             value={content}
             placeholder="Nội dung"
             onChange={(e) => setContent(e.target.value)}
-            style={{ width: "100%" }}
+            className="w-full"
           />
         </div>
 
         <Button
-          label={`Send Email (${selectedCount})`}
+          label={`Gửi Email (${selectedCount})`}
           icon="pi pi-send"
           disabled={selectedCount === 0}
           onClick={handleSend}
@@ -138,7 +141,7 @@ export default function SendMail() {
       </div>
 
       {/* ===== SELECT ALL ===== */}
-      <div className="mb-2 flex align-items-center gap-2">
+      <div className="mb-2 flex items-center gap-2">
         <Checkbox
           inputId="sendAll"
           checked={sendToAll}
@@ -149,11 +152,11 @@ export default function SendMail() {
         </label>
       </div>
 
-      <div className="mb-3">
+      {/* <div className="mb-3">
         <span className="p-tag p-tag-success">
           Đã chọn {selectedCount} khách hàng
         </span>
-      </div>
+      </div> */}
 
       {/* ===== TABLE ===== */}
       <DataTable
@@ -163,6 +166,7 @@ export default function SendMail() {
         {...paginatorProps}
         selection={selectedRows}
         onSelectionChange={handleSelectionChange}
+        emptyMessage="Chưa có khách hàng"
       >
         <Column selectionMode="multiple" style={{ width: "3rem" }} />
 
@@ -182,10 +186,10 @@ export default function SendMail() {
           style={{ width: "80px", textAlign: "center" }}
         />
 
-        <Column field="name" header="Name" />
+        <Column field="name" header="Tên" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
       </DataTable>
-    </div>
+    </AdminLayout>
   );
 }
