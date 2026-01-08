@@ -209,9 +209,12 @@ export default function Customers() {
             <InputText
               value={form.name}
               className={errors.name ? "p-invalid" : ""}
-              onChange={(e) =>
-                setForm({ ...form, name: e.target.value })
-              }
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (errors.name) {
+                  setErrors({ ...errors, name: null });
+                }
+              }}
             />
             {errors.name && (
               <small className="p-error">{errors.name}</small>
@@ -223,9 +226,12 @@ export default function Customers() {
             <InputText
               value={form.email}
               className={errors.email ? "p-invalid" : ""}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
+              onChange={(e) => {
+                setForm({ ...form, email: e.target.value });
+                if (errors.email) {
+                  setErrors({ ...errors, email: null });
+                }
+              }}
             />
             {errors.email && (
               <small className="p-error">{errors.email}</small>
