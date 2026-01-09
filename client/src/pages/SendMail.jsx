@@ -12,8 +12,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Checkbox } from "primereact/checkbox";
 
 export default function SendMail() {
-  const { customers, total, loading, fetchCustomers } =
-    useCustomerStore();
+  const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
   /* ================= PAGINATION (1-BASED) ================= */
   const [page, setPage] = useState(1);
@@ -44,9 +43,7 @@ export default function SendMail() {
 
   /* ================= MAP IDS -> ROWS ================= */
   const selectedRows = useMemo(() => {
-    return customers.filter((c) =>
-      selectedIds.includes(c._id)
-    );
+    return customers.filter((c) => selectedIds.includes(c._id));
   }, [customers, selectedIds]);
 
   /* ================= HANDLE ROW SELECTION ================= */
@@ -55,11 +52,14 @@ export default function SendMail() {
     const selectedInPage = e.value.map((c) => c._id);
 
     setSelectedIds((prev) => {
-      const keep = prev.filter(
-        (id) => !pageIds.includes(id)
-      );
+      const keep = prev.filter((id) => !pageIds.includes(id));
       return Array.from(new Set([...keep, ...selectedInPage]));
     });
+
+    // Tự động bỏ tick "Gửi cho tất cả" khi chọn thủ công
+    if (sendToAll) {
+      setSendToAll(false);
+    }
   };
 
   /* ================= COUNT ================= */
@@ -69,31 +69,26 @@ export default function SendMail() {
 
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
-    setSendToAll((prev) => {
-      const next = !prev;
-
-      if (next) {
-        setSelectedIds(customers.map((c) => c._id));
-      } else {
-        setSelectedIds([]);
-      }
-
-      return next;
-    });
+    setSendToAll((prev) => !prev);
+    
+    // Khi tick "Gửi cho tất cả", xóa danh sách chọn thủ công
+    if (!sendToAll) {
+      setSelectedIds([]);
+    }
   };
 
-  /* ================= SEND (MOCK) ================= */
+  /* ================= SEND ================= */
   const handleSend = async () => {
     if (!subject || !content) {
       alert("Vui lòng nhập đầy đủ Subject và Content");
       return;
     }
-  
+
     if (selectedCount === 0) {
       alert("Vui lòng chọn ít nhất 1 khách hàng");
       return;
     }
-  
+
     try {
       const res = await fetch("http://localhost:3000/api/mail/send", {
         method: "POST",
@@ -107,13 +102,14 @@ export default function SendMail() {
           customerIds: selectedIds,
         }),
       });
-  
+
       const data = await res.json();
-  
+
       if (!res.ok) throw new Error(data.message);
-  
+
       alert(`Đã gửi email đến ${data.count} khách hàng`);
-  
+
+      // Reset form
       setSubject("");
       setContent("");
       setSelectedIds([]);
@@ -122,7 +118,6 @@ export default function SendMail() {
       alert(err.message);
     }
   };
-  
 
   /* ================= UI ================= */
   return (
@@ -163,22 +158,24 @@ export default function SendMail() {
       </div>
 
       {/* ===== SELECT ALL ===== */}
-      <div className="mb-2 flex items-center gap-2">
-        <Checkbox
-          inputId="sendAll"
-          checked={sendToAll}
-          onChange={toggleSelectAllDB}
-        />
-        <label htmlFor="sendAll" className="cursor-pointer">
-          Gửi email cho tất cả khách hàng
-        </label>
-      </div>
+      <div className="mb-3 flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            inputId="sendAll"
+            checked={sendToAll}
+            onChange={toggleSelectAllDB}
+          />
+          <label htmlFor="sendAll" className="cursor-pointer">
+            Gửi email cho tất cả khách hàng
+          </label>
+        </div>
 
-      {/* <div className="mb-3">
-        <span className="p-tag p-tag-success">
-          Đã chọn {selectedCount} khách hàng
-        </span>
-      </div> */}
+        {!sendToAll && selectedIds.length > 0 && (
+          <span className="p-tag p-tag-success">
+            Đã chọn {selectedIds.length} khách hàng
+          </span>
+        )}
+      </div>
 
       {/* ===== TABLE ===== */}
       <DataTable
@@ -190,20 +187,16 @@ export default function SendMail() {
         onSelectionChange={handleSelectionChange}
         emptyMessage="Chưa có khách hàng"
       >
-        <Column selectionMode="multiple" style={{ width: "3rem" }} />
+        <Column
+          selectionMode="multiple"
+          style={{ width: "3rem" }}
+          disabled={sendToAll}
+        />
 
         <Column
           header="STT"
-          body={(_, options) =>{
-            if (rows === 5){
-              return (page - 1) * (rows - 5) + options.rowIndex + 1
-            } if (rows === 10) {
-              return (page - 1) * (rows - 10) + options.rowIndex + 1
-            } if (rows === 20) {
-              return (page - 1) * (rows - 20) + options.rowIndex + 1
-            } else {
-              return (page - 1) * (rows - 50) + options.rowIndex + 1
-            }
+          body={(_, options) => {
+            return (page - 1) * rows + options.rowIndex + 1;
           }}
           style={{ width: "80px", textAlign: "center" }}
         />
