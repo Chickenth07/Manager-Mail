@@ -56,7 +56,6 @@ export default function SendMail() {
       return Array.from(new Set([...keep, ...selectedInPage]));
     });
 
-    // Tự động bỏ tick "Gửi cho tất cả" khi chọn thủ công
     if (sendToAll) {
       setSendToAll(false);
     }
