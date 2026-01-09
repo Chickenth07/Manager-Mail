@@ -7,15 +7,16 @@ export default function Sidebar({ collapsed }) {
         ${collapsed ? "w-16" : "w-64"}
       `}
     >
+
       <div className="h-16 flex items-center justify-center border-b border-slate-700 font-bold">
+        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+          <span className="text-purple-600 font-bold text-2xl">S</span>
+        </div>
         {!collapsed && (
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-purple-600 font-bold text-2xl">S</span>
-              </div>
-              <span className="text-white text-2xl font-bold">Tech</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <span className="text-white text-2xl font-bold"> -Tech</span>
+          </div>
+        )}
       </div>
 
       <nav className="p-2 space-y-1 text-sm">

@@ -24,7 +24,7 @@ class MongooseBase {
     if (sort) query.sort(sort);
 
     if (Number(limit) && Number(page)) {
-      // query.skip(limit * (page - 1)).limit(limit);
+      // query.skip(limit * (page - 1)).limit(limit);5
       const skip = (Number(page) - 1) * Number(limit);
       query.skip(skip).limit(Number(limit));
     }
