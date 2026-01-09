@@ -83,24 +83,46 @@ export default function SendMail() {
   };
 
   /* ================= SEND (MOCK) ================= */
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!subject || !content) {
       alert("Vui lòng nhập đầy đủ Subject và Content");
       return;
     }
-
+  
     if (selectedCount === 0) {
       alert("Vui lòng chọn ít nhất 1 khách hàng");
       return;
     }
-
-    alert(`Đã gửi email đến ${selectedCount} khách hàng`);
-
-    setSubject("");
-    setContent("");
-    setSelectedIds([]);
-    setSendToAll(false);
+  
+    try {
+      const res = await fetch("http://localhost:3000/api/mail/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject,
+          content,
+          sendToAll,
+          customerIds: selectedIds,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok) throw new Error(data.message);
+  
+      alert(`Đã gửi email đến ${data.count} khách hàng`);
+  
+      setSubject("");
+      setContent("");
+      setSelectedIds([]);
+      setSendToAll(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
+  
 
   /* ================= UI ================= */
   return (
