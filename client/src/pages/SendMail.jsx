@@ -10,7 +10,6 @@ import 'ckeditor5/ckeditor5.css';
 import Editor from "../ckeditor/editor";
 import MyUploadAdapterPlugin from "../ckeditor/MyUploadAdapterPlugin";
 
-
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -36,7 +35,8 @@ export default function SendMail() {
 
   /* ================= SELECTION ================= */
   const [sendToAll, setSendToAll] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [excludedIds, setExcludedIds] = useState([]); // Danh sách loại trừ khi sendToAll = true
+  const [selectedIds, setSelectedIds] = useState([]); // Danh sách chọn khi sendToAll = false
 
   /* ================= FORM ================= */
   const [subject, setSubject] = useState("");
@@ -49,36 +49,55 @@ export default function SendMail() {
 
   /* ================= MAP IDS -> ROWS ================= */
   const selectedRows = useMemo(() => {
-    return customers.filter((c) => selectedIds.includes(c._id));
-  }, [customers, selectedIds]);
+    if (sendToAll) {
+      // Khi sendToAll = true, chọn tất cả TRỪ excludedIds
+      return customers.filter((c) => !excludedIds.includes(c._id));
+    } else {
+      // Khi sendToAll = false, chỉ chọn selectedIds
+      return customers.filter((c) => selectedIds.includes(c._id));
+    }
+  }, [customers, sendToAll, excludedIds, selectedIds]);
 
   /* ================= HANDLE ROW SELECTION ================= */
   const handleSelectionChange = (e) => {
-    const pageIds = customers.map((c) => c._id);
     const selectedInPage = e.value.map((c) => c._id);
-
-    setSelectedIds((prev) => {
-      const keep = prev.filter((id) => !pageIds.includes(id));
-      return Array.from(new Set([...keep, ...selectedInPage]));
-    });
+    const pageIds = customers.map((c) => c._id);
 
     if (sendToAll) {
-      setSendToAll(false);
+      // Chế độ "Gửi cho tất cả": cập nhật danh sách loại trừ
+      const newExcluded = pageIds.filter((id) => !selectedInPage.includes(id));
+      
+      setExcludedIds((prev) => {
+        const keep = prev.filter((id) => !pageIds.includes(id));
+        return Array.from(new Set([...keep, ...newExcluded]));
+      });
+    } else {
+      // Chế độ thường: cập nhật danh sách chọn
+      setSelectedIds((prev) => {
+        const keep = prev.filter((id) => !pageIds.includes(id));
+        return Array.from(new Set([...keep, ...selectedInPage]));
+      });
     }
   };
 
   /* ================= COUNT ================= */
   const selectedCount = useMemo(() => {
-    return sendToAll ? total : selectedIds.length;
-  }, [sendToAll, selectedIds, total]);
+    return sendToAll ? total - excludedIds.length : selectedIds.length;
+  }, [sendToAll, selectedIds, excludedIds, total]);
 
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
-    setSendToAll((prev) => !prev);
+    const newSendToAll = !sendToAll;
+    setSendToAll(newSendToAll);
 
-    // Khi tick "Gửi cho tất cả", xóa danh sách chọn thủ công
-    if (!sendToAll) {
+    if (newSendToAll) {
+      // Chuyển sang chế độ "Gửi cho tất cả"
+      setExcludedIds([]);
       setSelectedIds([]);
+    } else {
+      // Chuyển về chế độ thường
+      setSelectedIds([]);
+      setExcludedIds([]);
     }
   };
 
@@ -98,12 +117,12 @@ export default function SendMail() {
       subject,
       content,
       sendToAll,
-      customerIds: selectedIds,
+      customerIds: sendToAll ? [] : selectedIds,
+      excludedIds: sendToAll ? excludedIds : [],
     };
 
     console.log("🚀 Sending payload:", payload);
-    console.log("🔍 Selected IDs:", selectedIds);
-    console.log("🔢 Count:", selectedIds.length);
+    console.log("🔢 Count:", selectedCount);
 
     try {
       const res = await fetch("http://localhost:3000/api/mail/send", {
@@ -111,7 +130,7 @@ export default function SendMail() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload), // ← DÙNG PAYLOAD ĐÃ TẠO
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -124,6 +143,7 @@ export default function SendMail() {
       setSubject("");
       setContent("");
       setSelectedIds([]);
+      setExcludedIds([]);
       setSendToAll(false);
     } catch (err) {
       alert(err.message);
@@ -182,6 +202,12 @@ export default function SendMail() {
           </label>
         </div>
 
+        {sendToAll && excludedIds.length > 0 && (
+          <span className="p-tag p-tag-warning">
+            Đã loại trừ {excludedIds.length} khách hàng
+          </span>
+        )}
+
         {!sendToAll && selectedIds.length > 0 && (
           <span className="p-tag p-tag-success">
             Đã chọn {selectedIds.length} khách hàng
@@ -202,7 +228,6 @@ export default function SendMail() {
         <Column
           selectionMode="multiple"
           style={{ width: "3rem" }}
-          disabled={sendToAll}
         />
 
         <Column

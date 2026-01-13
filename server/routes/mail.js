@@ -134,6 +134,7 @@ router.post("/send", async (req, res) => {
         });
       }
 
+     // 🔥FIX: Ép STRING → ObjectId
       const objectIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
 
       console.log("🔍 Querying with ObjectIds:", objectIds);
