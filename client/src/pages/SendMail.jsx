@@ -104,7 +104,7 @@ export default function SendMail() {
   /* ================= SEND ================= */
   const handleSend = async () => {
     if (!subject || !content) {
-      alert("Vui lòng nhập đầy đủ Subject và Content");
+      alert("Vui lòng nhập đầy đủ Tiêu đề và Nội dung");
       return;
     }
 

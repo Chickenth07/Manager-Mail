@@ -7,7 +7,7 @@ import db from "./config/db/index.js";
 
 import authRoute from "./routes/auth.route.js";
 import customerRoute from "./routes/customer.route.js";
-import mailRoutes from "./routes/mail.js";
+import mailRoutes from "./routes/mail.route.js";
 import uploadRouter from "./routes/upload.route.js";
 
 dotenv.config();
