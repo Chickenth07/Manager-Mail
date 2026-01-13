@@ -1,9 +1,82 @@
 import express from "express";
 import mongoose from "mongoose";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { transporter } from "../utils/mailer.js";
 import Customer from "../models/Customer.js";
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Helper function: Chuyển đổi HTML content và nhúng ảnh
+function processHTMLWithImages(htmlContent) {
+  const attachments = [];
+  const imageMap = new Map();
+  let cid = 0;
+
+  console.log("🔧 Processing HTML for images...");
+
+  // Regex tìm tất cả thẻ img
+  const processedHTML = htmlContent.replace(
+    /<img[^>]+src="([^">]+)"[^>]*>/g,
+    (match, src) => {
+      console.log("🖼️ Found image src:", src);
+      
+      try {
+        // Kiểm tra nếu là URL localhost
+        if (src.includes('localhost') || src.includes('/uploads/')) {
+          // Lấy tên file từ URL
+          const filename = src.split('/').pop().split('?')[0];
+          const filepath = path.join(__dirname, '../uploads', filename);
+
+          console.log("📂 Looking for file:", filepath);
+          console.log("📁 File exists:", fs.existsSync(filepath));
+
+          // Kiểm tra file có tồn tại không
+          if (fs.existsSync(filepath)) {
+            // Tạo CID duy nhất cho mỗi file
+            if (!imageMap.has(filepath)) {
+              const cidValue = `image${cid++}@ckeditor`;
+              imageMap.set(filepath, cidValue);
+
+              // Thêm vào attachments
+              attachments.push({
+                filename: filename,
+                path: filepath,
+                cid: cidValue,
+              });
+
+              console.log(`✅ Added attachment: ${filename} with CID: ${cidValue}`);
+            }
+
+            // Thay thế src bằng cid
+            const cidValue = imageMap.get(filepath);
+            const newMatch = match.replace(src, `cid:${cidValue}`);
+            console.log("🔄 Replaced src with CID:", cidValue);
+            return newMatch;
+          } else {
+            console.warn(`⚠️ File not found: ${filepath}`);
+          }
+        } else {
+          console.log("🌐 External URL, keeping as is");
+        }
+        
+        // Nếu là URL external, giữ nguyên
+        return match;
+      } catch (error) {
+        console.error('❌ Error processing image:', error);
+        return match;
+      }
+    }
+  );
+
+  console.log(`✅ Processing complete. Found ${attachments.length} images`);
+
+  return { html: processedHTML, attachments };
+}
 
 router.post("/send", async (req, res) => {
   try {
@@ -61,7 +134,6 @@ router.post("/send", async (req, res) => {
         });
       }
 
-      // 🔥 FIX: Ép STRING → ObjectId
       const objectIds = validIds.map((id) => new mongoose.Types.ObjectId(id));
 
       console.log("🔍 Querying with ObjectIds:", objectIds);
@@ -87,11 +159,26 @@ router.post("/send", async (req, res) => {
       });
     }
 
+    /* ================= PROCESS HTML WITH IMAGES ================= */
+    const { html, attachments } = processHTMLWithImages(content);
+
+    console.log(`📧 Sending to ${emails.length} customers...`);
+    console.log(`🖼️ Attachments: ${attachments.length}`);
+    
+    if (attachments.length > 0) {
+      console.log("📎 Attachment details:");
+      attachments.forEach((att, i) => {
+        console.log(`  ${i + 1}. ${att.filename} (CID: ${att.cid})`);
+      });
+    }
+
+    /* ================= SEND EMAIL WITH INLINE IMAGES ================= */
     await transporter.sendMail({
       from: `"Mail Manager" <${process.env.MAIL_USER || "mail@gmail.com"}>`,
       to: emails.join(","),
       subject,
-      html: `<p>${content}</p>`,
+      html: html, // Sử dụng HTML đã được xử lý
+      attachments: attachments, // Thêm attachments
     });
 
     console.log("✅ EMAIL SENT SUCCESSFULLY");

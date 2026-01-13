@@ -1,12 +1,15 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
+  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.MAIL_PORT) || 587,
   secure: false,
   auth: {
-    user: "he181679nguyenvansang@gmail.com", // Hardcode tạm
-    pass: "tnmlducvburiqwao", // App Password không có khoảng trắng
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
   family: 4
 });

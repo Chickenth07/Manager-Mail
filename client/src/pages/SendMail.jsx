@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { CKEditor } from "@ckeditor/ckeditor5-react";
-import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 
 import useCustomerStore from "../store/useCustomerStore";
 import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
+import 'ckeditor5/ckeditor5.css';
+import Editor from "../ckeditor/editor";
+import MyUploadAdapterPlugin from "../ckeditor/MyUploadAdapterPlugin";
+
+
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
-import { InputTextarea } from "primereact/inputtextarea";
 import { Checkbox } from "primereact/checkbox";
 
 export default function SendMail() {
@@ -147,14 +150,13 @@ export default function SendMail() {
         <div className="field mb-3">
           <label>Nội dung email</label>
           <CKEditor
-            editor={ClassicEditor}
+            editor={Editor}
             data={content}
-            onChange={(event, editor) => {
-              const data = editor.getData();
-              setContent(data);
-            }}
             config={{
-              placeholder: "Nhập nội dung email...",
+              extraPlugins: [MyUploadAdapterPlugin],
+            }}
+            onChange={(event, editor) => {
+              setContent(editor.getData());
             }}
           />
         </div>
