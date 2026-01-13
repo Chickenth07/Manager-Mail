@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { CKEditor } from "@ckeditor/ckeditor5-react";
+import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+
 import useCustomerStore from "../store/useCustomerStore";
 import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
@@ -69,7 +72,7 @@ export default function SendMail() {
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
     setSendToAll((prev) => !prev);
-    
+
     // Khi tick "Gửi cho tất cả", xóa danh sách chọn thủ công
     if (!sendToAll) {
       setSelectedIds([]);
@@ -88,18 +91,24 @@ export default function SendMail() {
       return;
     }
 
+    const payload = {
+      subject,
+      content,
+      sendToAll,
+      customerIds: selectedIds,
+    };
+
+    console.log("🚀 Sending payload:", payload);
+    console.log("🔍 Selected IDs:", selectedIds);
+    console.log("🔢 Count:", selectedIds.length);
+
     try {
       const res = await fetch("http://localhost:3000/api/mail/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          subject,
-          content,
-          sendToAll,
-          customerIds: selectedIds,
-        }),
+        body: JSON.stringify(payload), // ← DÙNG PAYLOAD ĐÃ TẠO
       });
 
       const data = await res.json();
@@ -121,9 +130,7 @@ export default function SendMail() {
   /* ================= UI ================= */
   return (
     <AdminLayout>
-      <h2 className="text-xl font-semibold mb-4">
-        Gửi email cho khách hàng
-      </h2>
+      <h2 className="text-xl font-semibold mb-4">Gửi email cho khách hàng</h2>
 
       {/* ===== FORM ===== */}
       <div className="mb-6 max-w-2xl">
@@ -139,12 +146,16 @@ export default function SendMail() {
 
         <div className="field mb-3">
           <label>Nội dung email</label>
-          <InputTextarea
-            rows={5}
-            value={content}
-            placeholder="Nội dung"
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full"
+          <CKEditor
+            editor={ClassicEditor}
+            data={content}
+            onChange={(event, editor) => {
+              const data = editor.getData();
+              setContent(data);
+            }}
+            config={{
+              placeholder: "Nhập nội dung email...",
+            }}
           />
         </div>
 
