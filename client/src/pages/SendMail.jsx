@@ -6,7 +6,7 @@ import useCustomerStore from "../store/useCustomerStore";
 import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
-import 'ckeditor5/ckeditor5.css';
+import "ckeditor5/ckeditor5.css";
 import Editor from "../ckeditor/editor";
 import MyUploadAdapterPlugin from "../ckeditor/MyUploadAdapterPlugin";
 
@@ -41,6 +41,7 @@ export default function SendMail() {
   /* ================= FORM ================= */
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
+  const [attachments, setAttachments] = useState([]);
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function SendMail() {
     if (sendToAll) {
       // Chế độ "Gửi cho tất cả": cập nhật danh sách loại trừ
       const newExcluded = pageIds.filter((id) => !selectedInPage.includes(id));
-      
+
       setExcludedIds((prev) => {
         const keep = prev.filter((id) => !pageIds.includes(id));
         return Array.from(new Set([...keep, ...newExcluded]));
@@ -113,24 +114,28 @@ export default function SendMail() {
       return;
     }
 
-    const payload = {
-      subject,
-      content,
-      sendToAll,
-      customerIds: sendToAll ? [] : selectedIds,
-      excludedIds: sendToAll ? excludedIds : [],
-    };
+    const formData = new FormData();
 
-    console.log("🚀 Sending payload:", payload);
+    formData.append("subject", subject);
+    formData.append("content", content);
+    formData.append("sendToAll", sendToAll);
+
+    if (!sendToAll) {
+      selectedIds.forEach((id) => formData.append("customerIds[]", id));
+    } else {
+      excludedIds.forEach((id) => formData.append("excludedIds[]", id));
+    }
+
+    attachments.forEach((file) => {
+      formData.append("attachments", file);
+    });
+
     console.log("🔢 Count:", selectedCount);
 
     try {
       const res = await fetch("http://localhost:3000/api/mail/send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const data = await res.json();
@@ -142,6 +147,7 @@ export default function SendMail() {
       // Reset form
       setSubject("");
       setContent("");
+      setAttachments([]);
       setSelectedIds([]);
       setExcludedIds([]);
       setSendToAll(false);
@@ -179,6 +185,23 @@ export default function SendMail() {
               setContent(editor.getData());
             }}
           />
+        </div>
+
+        <div className="field mb-3">
+          <label>File đính kèm</label>
+          <input
+            type="file"
+            multiple
+            onChange={(e) => setAttachments(Array.from(e.target.files))}
+          />
+
+          {attachments.length > 0 && (
+            <ul className="mt-2 text-sm">
+              {attachments.map((file, index) => (
+                <li key={index}>{file.name}</li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <Button
@@ -225,10 +248,7 @@ export default function SendMail() {
         onSelectionChange={handleSelectionChange}
         emptyMessage="Chưa có khách hàng"
       >
-        <Column
-          selectionMode="multiple"
-          style={{ width: "3rem" }}
-        />
+        <Column selectionMode="multiple" style={{ width: "3rem" }} />
 
         <Column
           header="STT"
