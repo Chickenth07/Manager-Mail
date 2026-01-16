@@ -8,7 +8,6 @@ import Paginator from "../components/Paginator";
 
 import "ckeditor5/ckeditor5.css";
 import Editor from "../ckeditor/editor";
-import MyUploadAdapterPlugin from "../ckeditor/MyUploadAdapterPlugin";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -41,7 +40,8 @@ export default function SendMail() {
   /* ================= FORM ================= */
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
-  const [attachments, setAttachments] = useState([]);
+  const [attachments, setAttachments] = useState([]); // { filename, base64, contentType }
+  const [editorImages, setEditorImages] = useState([]); // { filename, base64, contentType }
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -102,6 +102,36 @@ export default function SendMail() {
     }
   };
 
+  /* ================= HANDLE EDITOR IMAGE UPLOAD ================= */
+  const handleEditorImageUpload = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditorImages(prev => [...prev, {
+        filename: file.name,
+        base64: reader.result,
+        contentType: file.type,
+      }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /* ================= HANDLE ATTACHMENT FILES ================= */
+  const handleAttachmentFiles = (files) => {
+    if (!Array.isArray(files)) return;
+    
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAttachments(prev => [...prev, {
+          filename: file.name,
+          base64: reader.result,
+          contentType: file.type,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   /* ================= SEND ================= */
   const handleSend = async () => {
     if (!subject || !content) {
@@ -114,28 +144,25 @@ export default function SendMail() {
       return;
     }
 
-    const formData = new FormData();
+    const payload = {
+      subject,
+      content,
+      sendToAll,
+      customerIds: sendToAll ? [] : selectedIds,
+      excludedIds: sendToAll ? excludedIds : [],
+      editorImages,
+      attachments,
+    };
 
-    formData.append("subject", subject);
-    formData.append("content", content);
-    formData.append("sendToAll", sendToAll);
-
-    if (!sendToAll) {
-      selectedIds.forEach((id) => formData.append("customerIds[]", id));
-    } else {
-      excludedIds.forEach((id) => formData.append("excludedIds[]", id));
-    }
-
-    attachments.forEach((file) => {
-      formData.append("attachments", file);
-    });
-
-    console.log("🔢 Count:", selectedCount);
+    console.log("📢 Count:", selectedCount);
 
     try {
       const res = await fetch("http://localhost:3000/api/mail/send", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -148,6 +175,7 @@ export default function SendMail() {
       setSubject("");
       setContent("");
       setAttachments([]);
+      setEditorImages([]);
       setSelectedIds([]);
       setExcludedIds([]);
       setSendToAll(false);
@@ -180,13 +208,54 @@ export default function SendMail() {
             editor={Editor}
             data={content}
             config={{
-              extraPlugins: [MyUploadAdapterPlugin],
+              extraPlugins: [
+                function(editor) {
+                  editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+                    return {
+                      upload: () => {
+                        return loader.file.then(file => {
+                          // Validate file size
+                          const maxSize = 5 * 1024 * 1024; // 5MB
+                          if (file.size > maxSize) {
+                            throw new Error('File quá lớn. Kích thước tối đa là 5MB');
+                          }
+
+                          // Validate file type
+                          if (!file.type.startsWith('image/')) {
+                            throw new Error('Chỉ chấp nhận file ảnh');
+                          }
+
+                          // Lưu file vào state
+                          handleEditorImageUpload(file);
+
+                          // Tạo URL base64 để hiển thị trong editor
+                          return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            
+                            reader.onload = () => {
+                              resolve({
+                                default: reader.result
+                              });
+                            };
+                            
+                            reader.onerror = () => {
+                              reject(new Error('Không thể đọc file'));
+                            };
+                            
+                            reader.readAsDataURL(file);
+                          });
+                        });
+                      },
+                      abort: () => {}
+                    };
+                  };
+                }
+              ],
             }}
             onReady={(editor) => {
               editor.on("attach-files", (evt, files) => {
                 if (!Array.isArray(files)) return;
-              
-                setAttachments(prev => [...prev, ...files]);
+                handleAttachmentFiles(files);
               });
             }}
             onChange={(event, editor) => {
@@ -194,6 +263,44 @@ export default function SendMail() {
             }}
           />
         </div>
+
+        {/* Hiển thị danh sách attachments */}
+        {attachments.length > 0 && (
+          <div className="mb-3">
+            <label className="block mb-2">File đính kèm ({attachments.length}):</label>
+            <div className="flex flex-wrap gap-2">
+              {attachments.map((file, idx) => (
+                <div key={idx} className="p-tag p-tag-info flex items-center gap-2">
+                  <span>{file.filename}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                    className="pi pi-times cursor-pointer"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hiển thị danh sách ảnh trong editor */}
+        {editorImages.length > 0 && (
+          <div className="mb-3">
+            <label className="block mb-2">Ảnh trong nội dung ({editorImages.length}):</label>
+            <div className="flex flex-wrap gap-2">
+              {editorImages.map((img, idx) => (
+                <div key={idx} className="p-tag p-tag-success flex items-center gap-2">
+                  <span>{img.filename}</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditorImages(prev => prev.filter((_, i) => i !== idx))}
+                    className="pi pi-times cursor-pointer"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Button
           label={`Gửi Email (${selectedCount})`}

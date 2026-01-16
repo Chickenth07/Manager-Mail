@@ -1,156 +1,175 @@
 import express from "express";
 import mongoose from "mongoose";
-import path from "path";
-import fs from "fs";
-import multer from "multer";
-import { fileURLToPath } from "url";
 import { transporter } from "../utils/mailer.js";
 import Customer from "../models/Customer.js";
 
 const router = express.Router();
 
-/* ================= PATH ================= */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-/* ================= MULTER ================= */
-const upload = multer({
-  dest: path.join(__dirname, "../uploads"),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-});
-
-/* ================= HELPER: INLINE IMAGES ================= */
-function processHTMLWithImages(htmlContent) {
-  const attachments = [];
-  const imageMap = new Map();
-  let cid = 0;
-
-  const processedHTML = htmlContent.replace(
-    /<img[^>]+src="([^">]+)"[^>]*>/g,
-    (match, src) => {
-      try {
-        if (src.includes("localhost") || src.includes("/uploads")) {
-          const filename = src.split("/").pop().split("?")[0];
-          const filepath = path.join(__dirname, "../uploads", filename);
-
-          if (fs.existsSync(filepath)) {
-            if (!imageMap.has(filepath)) {
-              const cidValue = `image${cid++}@ckeditor`;
-              imageMap.set(filepath, cidValue);
-
-              attachments.push({
-                filename,
-                path: filepath,
-                cid: cidValue,
-              });
-            }
-
-            return match.replace(src, `cid:${imageMap.get(filepath)}`);
-          }
-        }
-        return match;
-      } catch {
-        return match;
-      }
-    }
-  );
-
-  return { html: processedHTML, attachments };
-}
-
 /* ================= SEND MAIL ================= */
-router.post(
-  "/send",
-  upload.array("attachments"),
-  async (req, res) => {
-    try {
-      const {
-        subject,
-        content,
-        sendToAll,
-        customerIds = [],
-        excludedIds = [],
-      } = req.body;
+router.post("/send", express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const {
+      subject,
+      content,
+      sendToAll,
+      customerIds = [],
+      excludedIds = [],
+      editorImages = [], // Array of { filename, base64, contentType }
+      attachments = [],  // Array of { filename, base64, contentType }
+    } = req.body;
 
-      if (!subject || !content) {
-        return res.status(400).json({ message: "Thiếu subject hoặc content" });
-      }
+    // Validation
+    if (!subject || !content) {
+      return res.status(400).json({ message: "Thiếu subject hoặc content" });
+    }
 
-      const sendAll = sendToAll === true || sendToAll === "true";
+    const sendAll = sendToAll === true || sendToAll === "true";
 
-      let emails = [];
+    let emails = [];
 
-      /* ================= SEND TO ALL ================= */
-      if (sendAll) {
-        const excludedSet = new Set(
-          Array.isArray(excludedIds) ? excludedIds : [excludedIds]
-        );
+    /* ================= SEND TO ALL ================= */
+    if (sendAll) {
+      const excludedSet = new Set(
+        Array.isArray(excludedIds) ? excludedIds : [excludedIds]
+      );
 
-        const customers = await Customer.find({}, "email _id");
+      const customers = await Customer.find({}, "email _id");
 
-        emails = customers
-          .filter((c) => !excludedSet.has(String(c._id)))
-          .map((c) => c.email);
-      } else {
-        /* ================= SEND TO SELECTED ================= */
-        const ids = Array.isArray(customerIds)
-          ? customerIds
-          : [customerIds];
+      emails = customers
+        .filter((c) => !excludedSet.has(String(c._id)))
+        .map((c) => c.email)
+        .filter((email) => email); // Remove empty emails
+    } else {
+      /* ================= SEND TO SELECTED ================= */
+      const ids = Array.isArray(customerIds)
+        ? customerIds
+        : [customerIds];
 
-        const validIds = ids.filter((id) =>
-          mongoose.Types.ObjectId.isValid(id)
-        );
+      const validIds = ids.filter((id) =>
+        mongoose.Types.ObjectId.isValid(id)
+      );
 
-        if (!validIds.length) {
-          return res
-            .status(400)
-            .json({ message: "Không có khách hàng hợp lệ" });
-        }
-
-        const customers = await Customer.find({
-          where: { _id: { $in: validIds  } },
-          attr: "email"
-        });
-
-        emails = customers.map((c) => c.email);
-      }
-
-      if (!emails.length) {
+      if (!validIds.length) {
         return res
           .status(400)
-          .json({ message: "Không tìm thấy email hợp lệ" });
+          .json({ message: "Không có khách hàng hợp lệ" });
       }
 
-      /* ================= PROCESS HTML IMAGES ================= */
-      const { html, attachments: inlineImages } =
-        processHTMLWithImages(content);
-
-      /* ================= FILE ATTACHMENTS ================= */
-      const fileAttachments = (req.files || []).map((file) => ({
-        filename: file.originalname,
-        path: file.path,
-      }));
-
-      /* ================= SEND MAIL ================= */
-      await transporter.sendMail({
-        from: `"Mail Manager" <${process.env.MAIL_USER}>`,
-        to: emails.join(","),
-        subject,
-        html,
-        attachments: [...inlineImages, ...fileAttachments],
+      const customers = await Customer.find({
+        where: { _id: { $in: validIds  } },
+        attr: "email"
       });
 
-      res.json({
-        success: true,
-        count: emails.length,
-      });
-    } catch (err) {
-      console.error("❌ SEND MAIL ERROR:", err);
-      res.status(500).json({ message: err.message });
+      emails = customers
+        .map((c) => c.email)
+        .filter((email) => email); // Remove empty emails
     }
+
+    if (!emails.length) {
+      return res
+        .status(400)
+        .json({ message: "Không tìm thấy email hợp lệ" });
+    }
+
+    /* ================= PROCESS ATTACHMENTS ================= */
+    const mailAttachments = [];
+    
+    // File attachments thông thường
+    if (Array.isArray(attachments)) {
+      attachments.forEach((file) => {
+        if (file.base64 && file.filename) {
+          mailAttachments.push({
+            filename: file.filename,
+            content: file.base64.split(',')[1] || file.base64, // Remove data:image/...;base64,
+            encoding: 'base64',
+          });
+        }
+      });
+    }
+
+    // Ảnh từ editor - embed vào HTML với CID
+    let finalHtml = content;
+    
+    if (Array.isArray(editorImages) && editorImages.length > 0) {
+      const imageMap = new Map();
+      
+      editorImages.forEach((img, index) => {
+        if (img.base64 && img.filename) {
+          const cid = `editor-image-${Date.now()}-${index}@nodemailer`;
+          imageMap.set(index, cid);
+          
+          // Thêm vào attachments với cid
+          mailAttachments.push({
+            filename: img.filename,
+            content: img.base64.split(',')[1] || img.base64,
+            encoding: 'base64',
+            cid: cid,
+          });
+        }
+      });
+
+      // Thay thế base64 images trong HTML bằng cid references
+      let imageIndex = 0;
+      finalHtml = content.replace(
+        /<img([^>]+)src="data:image\/[^;]+;base64,[^"]*"([^>]*)>/gi,
+        (match, before, after) => {
+          const cid = imageMap.get(imageIndex);
+          imageIndex++;
+          
+          if (cid) {
+            return `<img${before}src="cid:${cid}"${after}>`;
+          }
+          return match;
+        }
+      );
+    }
+
+    /* ================= SEND MAIL ================= */
+    const mailOptions = {
+      from: `"Mail Manager" <${process.env.MAIL_USER}>`,
+      bcc: emails.join(","), // Dùng BCC để ẩn danh sách người nhận
+      subject: subject,
+      html: finalHtml,
+    };
+
+    // Chỉ thêm attachments nếu có
+    if (mailAttachments.length > 0) {
+      mailOptions.attachments = mailAttachments;
+    }
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({
+      success: true,
+      count: emails.length,
+      message: `Đã gửi email đến ${emails.length} khách hàng`,
+    });
+
+  } catch (err) {
+    console.error("❌ SEND MAIL ERROR:", err);
+
+    res.status(500).json({ 
+      success: false,
+      message: err.message || "Có lỗi xảy ra khi gửi email"
+    });
   }
-);
+});
+
+/* ================= TEST MAIL CONNECTION ================= */
+router.get("/test", async (req, res) => {
+  try {
+    await transporter.verify();
+    res.json({ 
+      success: true, 
+      message: "Mail server connection successful" 
+    });
+  } catch (err) {
+    console.error("Mail connection error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+});
 
 export default router;
