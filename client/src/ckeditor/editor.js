@@ -1,3 +1,5 @@
+import AttachFilePlugin from "../components/AttachFilePlugin";
+
 import {
   ClassicEditor,
   Autosave,
@@ -40,6 +42,7 @@ import {
   TodoList,
   Underline,
   GeneralHtmlSupport,
+  // AttachFilePlugin,
 } from "ckeditor5";
 
 export default class Editor extends ClassicEditor {}
@@ -85,6 +88,7 @@ Editor.builtinPlugins = [
   TodoList,
   Underline,
   GeneralHtmlSupport,
+  AttachFilePlugin,
 ];
 
 Editor.defaultConfig = {
@@ -106,8 +110,8 @@ Editor.defaultConfig = {
       "link",
       "insertImage",
       "mediaEmbed",
+      "attachFile",
       "insertTable",
-      "blockQuote",
       "|",
       "bulletedList",
       "numberedList",
@@ -115,7 +119,7 @@ Editor.defaultConfig = {
       "outdent",
       "indent",
       "|",
-      "attachFile",
+      "blockQuote",
     ],
   },
 

@@ -175,33 +175,24 @@ export default function SendMail() {
 
         <div className="field mb-3">
           <label>Nội dung email</label>
+
           <CKEditor
             editor={Editor}
             data={content}
             config={{
               extraPlugins: [MyUploadAdapterPlugin],
             }}
+            onReady={(editor) => {
+              editor.on("attach-files", (evt, files) => {
+                if (!Array.isArray(files)) return;
+              
+                setAttachments(prev => [...prev, ...files]);
+              });
+            }}
             onChange={(event, editor) => {
               setContent(editor.getData());
             }}
           />
-        </div>
-
-        <div className="field mb-3">
-          <label>File đính kèm</label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => setAttachments(Array.from(e.target.files))}
-          />
-
-          {attachments.length > 0 && (
-            <ul className="mt-2 text-sm">
-              {attachments.map((file, index) => (
-                <li key={index}>{file.name}</li>
-              ))}
-            </ul>
-          )}
         </div>
 
         <Button
