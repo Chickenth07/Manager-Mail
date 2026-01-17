@@ -22,6 +22,9 @@ export default function SendMail() {
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
 
+  const [externalEmails, setExternalEmails] = useState([]);
+  const [externalInput, setExternalInput] = useState("");
+
   const paginatorProps = Paginator({
     page,
     rows,
@@ -47,6 +50,24 @@ export default function SendMail() {
   useEffect(() => {
     fetchCustomers(page, rows);
   }, [page, rows, fetchCustomers]);
+
+  //=======Validate=======//
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const addExternalEmail = () => {
+    const email = externalInput.trim();
+    if (!email) return;
+
+    if (!isValidEmail(email)) {
+      alert("Email không hợp lệ");
+      return;
+    }
+
+    setExternalEmails((prev) =>
+      prev.includes(email) ? prev : [...prev, email]
+    );
+    setExternalInput("");
+  };
 
   /* ================= MAP IDS -> ROWS ================= */
   const selectedRows = useMemo(() => {
@@ -83,8 +104,12 @@ export default function SendMail() {
 
   /* ================= COUNT ================= */
   const selectedCount = useMemo(() => {
-    return sendToAll ? total - excludedIds.length : selectedIds.length;
-  }, [sendToAll, selectedIds, excludedIds, total]);
+    const dbCount = sendToAll
+      ? total - excludedIds.length
+      : selectedIds.length;
+  
+    return dbCount + externalEmails.length;
+  }, [sendToAll, selectedIds, excludedIds, total, externalEmails]);
 
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
@@ -106,11 +131,14 @@ export default function SendMail() {
   const handleEditorImageUpload = (file) => {
     const reader = new FileReader();
     reader.onload = () => {
-      setEditorImages(prev => [...prev, {
-        filename: file.name,
-        base64: reader.result,
-        contentType: file.type,
-      }]);
+      setEditorImages((prev) => [
+        ...prev,
+        {
+          filename: file.name,
+          base64: reader.result,
+          contentType: file.type,
+        },
+      ]);
     };
     reader.readAsDataURL(file);
   };
@@ -118,15 +146,18 @@ export default function SendMail() {
   /* ================= HANDLE ATTACHMENT FILES ================= */
   const handleAttachmentFiles = (files) => {
     if (!Array.isArray(files)) return;
-    
-    files.forEach(file => {
+
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
-        setAttachments(prev => [...prev, {
-          filename: file.name,
-          base64: reader.result,
-          contentType: file.type,
-        }]);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            filename: file.name,
+            base64: reader.result,
+            contentType: file.type,
+          },
+        ]);
       };
       reader.readAsDataURL(file);
     });
@@ -150,6 +181,7 @@ export default function SendMail() {
       sendToAll,
       customerIds: sendToAll ? [] : selectedIds,
       excludedIds: sendToAll ? excludedIds : [],
+      externalEmails,
       editorImages,
       attachments,
     };
@@ -191,6 +223,49 @@ export default function SendMail() {
 
       {/* ===== FORM ===== */}
       <div className="mb-6 max-w-2xl">
+        <div className="mb-4 max-w-2xl">
+          <label className="block mb-2 font-medium">
+            Gửi thêm cho email bên ngoài
+          </label>
+
+          <div className="flex gap-2">
+            <InputText
+              placeholder="Nhập email, nhấn Enter"
+              value={externalInput}
+              onChange={(e) => setExternalInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addExternalEmail();
+                }
+              }}
+              className="flex-1"
+            />
+            <Button label="Thêm" icon="pi pi-plus" onClick={addExternalEmail} />
+          </div>
+
+          {externalEmails.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {externalEmails.map((email, idx) => (
+                <div
+                  key={idx}
+                  className="p-tag p-tag-secondary flex items-center gap-2"
+                >
+                  <span>{email}</span>
+                  <i
+                    className="pi pi-times cursor-pointer"
+                    onClick={() =>
+                      setExternalEmails((prev) =>
+                        prev.filter((_, i) => i !== idx)
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="field mb-3">
           <label>Tiêu đề email</label>
           <InputText
@@ -209,20 +284,24 @@ export default function SendMail() {
             data={content}
             config={{
               extraPlugins: [
-                function(editor) {
-                  editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+                function (editor) {
+                  editor.plugins.get("FileRepository").createUploadAdapter = (
+                    loader
+                  ) => {
                     return {
                       upload: () => {
-                        return loader.file.then(file => {
+                        return loader.file.then((file) => {
                           // Validate file size
                           const maxSize = 5 * 1024 * 1024; // 5MB
                           if (file.size > maxSize) {
-                            throw new Error('File quá lớn. Kích thước tối đa là 5MB');
+                            throw new Error(
+                              "File quá lớn. Kích thước tối đa là 5MB"
+                            );
                           }
 
                           // Validate file type
-                          if (!file.type.startsWith('image/')) {
-                            throw new Error('Chỉ chấp nhận file ảnh');
+                          if (!file.type.startsWith("image/")) {
+                            throw new Error("Chỉ chấp nhận file ảnh");
                           }
 
                           // Lưu file vào state
@@ -231,25 +310,25 @@ export default function SendMail() {
                           // Tạo URL base64 để hiển thị trong editor
                           return new Promise((resolve, reject) => {
                             const reader = new FileReader();
-                            
+
                             reader.onload = () => {
                               resolve({
-                                default: reader.result
+                                default: reader.result,
                               });
                             };
-                            
+
                             reader.onerror = () => {
-                              reject(new Error('Không thể đọc file'));
+                              reject(new Error("Không thể đọc file"));
                             };
-                            
+
                             reader.readAsDataURL(file);
                           });
                         });
                       },
-                      abort: () => {}
+                      abort: () => {},
                     };
                   };
-                }
+                },
               ],
             }}
             onReady={(editor) => {
@@ -267,14 +346,21 @@ export default function SendMail() {
         {/* Hiển thị danh sách attachments */}
         {attachments.length > 0 && (
           <div className="mb-3">
-            <label className="block mb-2">File đính kèm ({attachments.length}):</label>
+            <label className="block mb-2">
+              File đính kèm ({attachments.length}):
+            </label>
             <div className="flex flex-wrap gap-2">
               {attachments.map((file, idx) => (
-                <div key={idx} className="p-tag p-tag-info flex items-center gap-2">
+                <div
+                  key={idx}
+                  className="p-tag p-tag-info flex items-center gap-2"
+                >
                   <span>{file.filename}</span>
                   <button
                     type="button"
-                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                    onClick={() =>
+                      setAttachments((prev) => prev.filter((_, i) => i !== idx))
+                    }
                     className="pi pi-times cursor-pointer"
                   />
                 </div>
@@ -286,14 +372,23 @@ export default function SendMail() {
         {/* Hiển thị danh sách ảnh trong editor */}
         {editorImages.length > 0 && (
           <div className="mb-3">
-            <label className="block mb-2">Ảnh trong nội dung ({editorImages.length}):</label>
+            <label className="block mb-2">
+              Ảnh trong nội dung ({editorImages.length}):
+            </label>
             <div className="flex flex-wrap gap-2">
               {editorImages.map((img, idx) => (
-                <div key={idx} className="p-tag p-tag-success flex items-center gap-2">
+                <div
+                  key={idx}
+                  className="p-tag p-tag-success flex items-center gap-2"
+                >
                   <span>{img.filename}</span>
                   <button
                     type="button"
-                    onClick={() => setEditorImages(prev => prev.filter((_, i) => i !== idx))}
+                    onClick={() =>
+                      setEditorImages((prev) =>
+                        prev.filter((_, i) => i !== idx)
+                      )
+                    }
                     className="pi pi-times cursor-pointer"
                   />
                 </div>
