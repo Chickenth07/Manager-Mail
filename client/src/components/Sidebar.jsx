@@ -39,6 +39,16 @@ export default function Sidebar({ collapsed }) {
         >
           ✉️ {!collapsed && "Gửi Mail"}
         </NavLink>
+
+        <NavLink
+          to="/mail-history"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded
+            ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
+          }
+        >
+          🕘 {!collapsed && "Lịch Sử Gửi Mail"}
+        </NavLink>
       </nav>
     </aside>
   );

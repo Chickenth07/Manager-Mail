@@ -2,11 +2,13 @@ import express from "express";
 import mongoose from "mongoose";
 import { transporter } from "../utils/mailer.js";
 import Customer from "../models/Customer.js";
+import MailLog from "../models/MailLog.js";
+
 
 const router = express.Router();
 
 /* ================= SEND MAIL ================= */
-router.post("/send", express.json({ limit: "50mb" }), async (req, res) => {
+router.post("/send", async (req, res) => {
   try {
     const {
       subject,
@@ -25,13 +27,14 @@ router.post("/send", express.json({ limit: "50mb" }), async (req, res) => {
     }
 
     const sendAll = sendToAll === true || sendToAll === "true";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     let emails = [];
 
     /* ================= SEND TO ALL ================= */
     if (sendAll) {
       const excludedSet = new Set(
-        Array.isArray(excludedIds) ? excludedIds : [excludedIds]
+        (Array.isArray(excludedIds) ? excludedIds : [excludedIds]).map(String)
       );
 
       const customers = await Customer.find({}, "email _id");
@@ -139,7 +142,24 @@ router.post("/send", express.json({ limit: "50mb" }), async (req, res) => {
       mailOptions.attachments = mailAttachments;
     }
 
-    await transporter.sendMail(mailOptions);
+    // await transporter.sendMail(mailOptions);
+
+    await transporter.sendMail({
+      from: `"Mail Manager" <${process.env.MAIL_USER}>`,
+      bcc: emails,
+      subject,
+      html: finalHtml,
+      attachments: mailAttachments,
+    });
+
+    await MailLog.create({
+      subject,
+      content: finalHtml,
+      recipients: emails,
+      successCount: emails.length,
+      failCount: 0,
+      status: "success",
+    });
 
     res.json({
       success: true,
@@ -148,6 +168,21 @@ router.post("/send", express.json({ limit: "50mb" }), async (req, res) => {
     });
   } catch (err) {
     console.error("❌ SEND MAIL ERROR:", err);
+
+    /* ===== SAVE LOG (FAILED) ===== */
+    await MailLog.create({
+      subject: req.body?.subject || "(unknown)",
+      content: req.body?.content || "",
+      recipients: emails,
+      successCount: 0,
+      failCount: emails.length,
+      status: "failed",
+      failedDetails: emails.map(e => ({
+        email: e,
+        error: err.message,
+      })),
+    });
+
 
     res.status(500).json({
       success: false,

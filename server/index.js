@@ -7,6 +7,7 @@ import db from "./config/db/index.js";
 import authRoute from "./routes/auth.route.js";
 import customerRoute from "./routes/customer.route.js";
 import mailRoutes from "./routes/mail.route.js";
+import mailHistoryRoute from "./routes/mailHistory.route.js"
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ db.connect();
 app.use("/api", authRoute);
 app.use("/api/customers", customerRoute);
 app.use("/api/mail", mailRoutes);
+app.use("/api/mail-history", mailHistoryRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
