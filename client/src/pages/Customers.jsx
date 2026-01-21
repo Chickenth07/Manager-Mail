@@ -14,6 +14,7 @@ import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 export default function Customers() {
+  const BASE_URL = import.meta.env.VITE_BASE_URL;
   const API_URL = import.meta.env.VITE_API_URL;
 
   const navigate = useNavigate();
@@ -120,7 +121,9 @@ export default function Customers() {
       phone: customer.phone || "",
     });
     setImageFile(null);
-    setImagePreview(customer.image ? `${API_URL}${customer.image}` : null);
+    setImagePreview(
+      customer.image ? `http://localhost:3000${customer.image}` : null
+    );
     setErrors({});
     setVisible(true);
   };
@@ -200,10 +203,15 @@ export default function Customers() {
               <img
                 src={`http://localhost:3000${row.image}`}
                 className="w-10 h-10 object-cover border"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
               />
-            ) : null
+            ) : (
+              <span className="text-gray-400 italic text-sm">Chưa có</span>
+            )
           }
-          style={{ width: "80px", textAlign: "center" }}
+          style={{ width: "100px", textAlign: "center" }}
         />
 
         <Column
@@ -281,13 +289,13 @@ export default function Customers() {
           <div className="field mb-3">
             <label>Ảnh khách hàng</label>
 
-            {imagePreview && (
-              <div className="mb-2">
-                <img
-                  src={imagePreview}
-                  className="w-32 h-32 object-cover border"
-                />
-              </div>
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                className="w-32 h-32 object-cover border"
+              />
+            ) : (
+              <div className="text-sm text-gray-400 italic">Chưa có ảnh</div>
             )}
 
             <input

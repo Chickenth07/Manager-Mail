@@ -140,7 +140,7 @@ router.post("/send", async (req, res) => {
             alt="${customer.name}"
             width="600"
             height="640"
-            style="border-radius:8px;object-fit:cover"
+            style="object-fit:cover"
           />
         `,
       };
@@ -155,7 +155,7 @@ router.post("/send", async (req, res) => {
       );
 
       await transporter.sendMail({
-        from: `"Mail Manager" <${process.env.MAIL_USER}>`,
+        from: `"S-Tech" <${process.env.MAIL_USER}>`,
         to: customer.email,
         subject: personalizedSubject,
         html: personalizedHtml,
