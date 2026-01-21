@@ -38,12 +38,13 @@ const useCustomerStore = create((set) => ({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-
+  
+    const result = await res.json();
+  
     if (!res.ok) {
-      throw new Error("Add customer failed");
+      throw result;
     }
-
-    return await res.json();
+    return result;
   },
 
   updateCustomer: async (id, data) => {
@@ -52,12 +53,14 @@ const useCustomerStore = create((set) => ({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-
+  
+    const result = await res.json();
+  
     if (!res.ok) {
-      throw new Error("Update customer failed");
+      throw result;
     }
-
-    return await res.json();
+  
+    return result;
   },
 
   deleteCustomer: async (id) => {

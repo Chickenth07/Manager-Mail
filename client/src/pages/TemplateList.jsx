@@ -152,7 +152,7 @@ export default function TemplateList() {
           value={templates}
           loading={loading}
           {...paginatorProps}
-          showGridlines 
+          showGridlines
           emptyMessage="Chưa có template nào"
           className="text-sm"
         >
@@ -194,16 +194,15 @@ export default function TemplateList() {
             body={(row) => (
               <div className="flex gap-2">
                 <Button
-                  label="Xem"
-                  text
-                  size="small"
+                  icon="pi pi-eye"
+                  severity="info"
+                  aria-label="Favorite"
                   onClick={() => setViewTemplate(row)}
                 />
                 <Button
-                  label="Sửa"
-                  text
-                  size="small"
-                  severity="warning"
+                  icon="pi pi-pencil"
+                  severity="help"
+                  aria-label="Edit"
                   onClick={() => {
                     setForm({
                       name: row.name,
@@ -217,10 +216,9 @@ export default function TemplateList() {
                   }}
                 />
                 <Button
-                  label="Xóa"
-                  text
-                  size="small"
+                  icon="pi pi-trash"
                   severity="danger"
+                  aria-label="Cancel"
                   onClick={() => handleDelete(row._id)}
                 />
               </div>

@@ -129,11 +129,12 @@ export default function Customers() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
+  
     try {
       setSaving(true);
+  
       let customerId;
-
+  
       if (editingCustomer) {
         await updateCustomer(editingCustomer._id, form);
         customerId = editingCustomer._id;
@@ -141,17 +142,20 @@ export default function Customers() {
         const created = await addCustomer(form);
         customerId = created._id;
       }
-
+  
       if (imageFile && customerId) {
         await uploadCustomerImage(customerId, imageFile);
       }
-
+  
       await fetchCustomers(1, rows);
-
       setVisible(false);
       setPage(1);
     } catch (err) {
-      console.error("Save customer failed:", err);
+      if (err?.field) {
+        setErrors({ [err.field]: err.message });
+        return; 
+      }
+      console.error(err);
     } finally {
       setSaving(false);
     }
