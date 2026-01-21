@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 
 import useCustomerStore from "../store/useCustomerStore";
-import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
 import "ckeditor5/ckeditor5.css";
@@ -104,10 +103,8 @@ export default function SendMail() {
 
   /* ================= COUNT ================= */
   const selectedCount = useMemo(() => {
-    const dbCount = sendToAll
-      ? total - excludedIds.length
-      : selectedIds.length;
-  
+    const dbCount = sendToAll ? total - excludedIds.length : selectedIds.length;
+
     return dbCount + externalEmails.length;
   }, [sendToAll, selectedIds, excludedIds, total, externalEmails]);
 
@@ -218,7 +215,7 @@ export default function SendMail() {
 
   /* ================= UI ================= */
   return (
-    <AdminLayout>
+    <>
       <h2 className="text-xl font-semibold mb-4">Gửi email cho khách hàng</h2>
 
       {/* ===== FORM ===== */}
@@ -446,7 +443,17 @@ export default function SendMail() {
         <Column
           header="STT"
           body={(_, options) => {
-            return (page - 1) * rows + options.rowIndex + 1;
+            if (rows === 5) {
+              return (page - 1) * (rows - 5) + options.rowIndex + 1;
+            }
+            if (rows === 10) {
+              return (page - 1) * (rows - 10) + options.rowIndex + 1;
+            }
+            if (rows === 20) {
+              return (page - 1) * (rows - 20) + options.rowIndex + 1;
+            } else {
+              return (page - 1) * (rows - 50) + options.rowIndex + 1;
+            }
           }}
           style={{ width: "80px", textAlign: "center" }}
         />
@@ -455,6 +462,6 @@ export default function SendMail() {
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
       </DataTable>
-    </AdminLayout>
+    </>
   );
 }

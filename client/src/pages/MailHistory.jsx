@@ -3,25 +3,84 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import MailFailDialog from "../components/MailFailDialog";
-import AdminLayout from "../layouts/AdminLayout";
+import Paginator from "../components/Paginator";
 
 export default function MailHistory() {
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const [mails, setMails] = useState([]);
   const [selectedMailId, setSelectedMailId] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState(5);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const paginatorProps = Paginator({
+    page,
+    rows,
+    total,
+    onChange: ({ page, rows }) => {
+      setPage(page);
+      setRows(rows);
+    },
+  });
+
   useEffect(() => {
-    fetch("http://localhost:3000/api/mail-history")
-      .then((res) => res.json())
-      .then(setMails);
-  }, []);
+    fetchMailHistory(page, rows);
+  }, [page, rows]);
+
+  const fetchMailHistory = async (pageIndex, pageSize) => {
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `${API_URL}/mail-history?page=${pageIndex}&limit=${pageSize}`
+      );
+
+      const data = await res.json();
+
+      setMails(data.items);
+      setTotal(data.total);
+    } catch (err) {
+      alert("Không thể tải lịch sử gửi mail");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <AdminLayout>
+    <>
       <h2 className="text-xl font-semibold mb-4">Lịch sử gửi mail</h2>
 
-      <DataTable value={mails}>
+      <DataTable
+        value={mails}
+        loading={loading}
+        {...paginatorProps}
+        emptyMessage="Chưa có lịch sử gửi mail"
+      >
+        <Column
+          header="STT"
+          body={(_, options) => {
+            if (rows === 5) {
+              return (page - 1) * (rows - 5) + options.rowIndex + 1;
+            }
+            if (rows === 10) {
+              return (page - 1) * (rows - 10) + options.rowIndex + 1;
+            }
+            if (rows === 20) {
+              return (page - 1) * (rows - 20) + options.rowIndex + 1;
+            } else {
+              return (page - 1) * (rows - 50) + options.rowIndex + 1;
+            }
+          }}
+          style={{ width: "80px", textAlign: "center" }}
+        />
+
         <Column field="subject" header="Tiêu đề" />
+
         <Column field="successCount" header="Thành công" />
+
         <Column
           header="Thất bại"
           body={(row) =>
@@ -29,6 +88,7 @@ export default function MailHistory() {
               <Button
                 label={row.failCount}
                 severity="danger"
+                size="small"
                 onClick={() => setSelectedMailId(row._id)}
               />
             ) : (
@@ -36,12 +96,12 @@ export default function MailHistory() {
             )
           }
         />
+
         <Column field="status" header="Trạng thái" />
+
         <Column
           header="Thời điểm gửi"
-          body={(row) =>
-            new Date(row.createdAt).toLocaleString()
-          }
+          body={(row) => new Date(row.createdAt).toLocaleString()}
         />
       </DataTable>
 
@@ -51,6 +111,6 @@ export default function MailHistory() {
           onHide={() => setSelectedMailId(null)}
         />
       )}
-    </AdminLayout>
+    </>
   );
 }

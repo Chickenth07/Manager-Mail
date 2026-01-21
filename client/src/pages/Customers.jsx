@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 import useAuthStore from "../store/useAuthStore";
 import useCustomerStore from "../store/useCustomerStore";
-import AdminLayout from "../layouts/AdminLayout";
 import Paginator from "../components/Paginator";
 
 import { DataTable } from "primereact/datatable";
@@ -174,7 +173,7 @@ export default function Customers() {
 
   /* ================= UI ================= */
   return (
-    <AdminLayout>
+    <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Quản lý khách hàng</h2>
 
@@ -189,7 +188,19 @@ export default function Customers() {
       >
         <Column
           header="STT"
-          body={(_, options) => (page - 1) * rows + options.rowIndex + 1}
+          body={(_, options) => {
+            if (rows === 5) {
+              return (page - 1) * (rows - 5) + options.rowIndex + 1;
+            }
+            if (rows === 10) {
+              return (page - 1) * (rows - 10) + options.rowIndex + 1;
+            }
+            if (rows === 20) {
+              return (page - 1) * (rows - 20) + options.rowIndex + 1;
+            } else {
+              return (page - 1) * (rows - 50) + options.rowIndex + 1;
+            }
+          }}
           style={{ width: "80px", textAlign: "center" }}
         />
 
@@ -316,6 +327,6 @@ export default function Customers() {
       </Dialog>
 
       <ConfirmDialog />
-    </AdminLayout>
+    </>
   );
 }

@@ -1,8 +1,11 @@
 import { createBrowserRouter } from "react-router-dom";
-import Customers from "../pages/Customers.jsx";
+
 import Login from "../pages/Login.jsx";
+import Customers from "../pages/Customers.jsx";
 import SendMail from "../pages/SendMail.jsx";
 import MailHistory from "../pages/MailHistory.jsx";
+import TemplateList from "../pages/TemplateList.jsx";
+import AdminLayout from "../layouts/AdminLayout.jsx";
 
 const router = createBrowserRouter([
   {
@@ -10,16 +13,25 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: "/customers",
-    element: <Customers />,
-  },
-  {
-    path: "/send-mail",
-    element: <SendMail/>,
-  },
-  {
-    path: "/mail-history",
-    element: <MailHistory/>,
+    element: <AdminLayout />,
+    children: [
+      {
+        path: "/customers",
+        element: <Customers />,
+      },
+      {
+        path: "/send-mail",
+        element: <SendMail />,
+      },
+      {
+        path: "/mail-history",
+        element: <MailHistory />,
+      },
+      {
+        path: "/template",
+        element: <TemplateList />,
+      },
+    ],
   },
 ]);
 

@@ -1,7 +1,14 @@
 import useAuthStore from "../store/useAuthStore";
+import { useNavigate } from "react-router-dom";
 
 export default function Header({ collapsed, onToggle }) {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <header className="h-16 bg-white border-b flex items-center justify-between px-6">
@@ -20,7 +27,7 @@ export default function Header({ collapsed, onToggle }) {
           {user?.name}
         </span>
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="px-3 py-1 rounded bg-red-500 text-white text-sm"
         >
           Đăng xuất

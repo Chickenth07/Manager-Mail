@@ -1,9 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import useAuthStore from "../store/useAuthStore";
 
-export default function AdminLayout({ children }) {
+export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const { isLoggedIn } = useAuthStore();
+  const navigate = useNavigate();
+
+  /* ===== GLOBAL AUTH GUARD ===== */
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate("/");
+    }
+  }, [isLoggedIn, navigate]);
 
   return (
     <div className="flex h-screen bg-slate-100">
@@ -20,7 +31,7 @@ export default function AdminLayout({ children }) {
 
         {/* CONTENT */}
         <main className="flex-1 p-6 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

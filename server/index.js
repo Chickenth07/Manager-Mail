@@ -9,6 +9,7 @@ import customerRoute from "./routes/customer.route.js";
 import uploadRoute from "./routes/upload.route.js";
 import mailRoutes from "./routes/mail.route.js";
 import mailHistoryRoute from "./routes/mailHistory.route.js"
+import templateRouter from "./routes/mailTemplate.js"
 import path from "path";
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use(
   "/uploads",
   express.static(path.join(process.cwd(), "public/uploads"))
 );
+app.use("/api/templates", templateRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

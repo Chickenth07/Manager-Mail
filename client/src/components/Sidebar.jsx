@@ -41,15 +41,15 @@ export default function Sidebar({ collapsed }) {
         </NavLink>
 
         <NavLink
-          to="/mail-history"
+          to="/template"
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          🕘 {!collapsed && "Lịch Sử Gửi Mail"}
+          ⚡ {!collapsed && "Template"}
         </NavLink>
-
+        
         <NavLink
           to="/mail-history"
           className={({ isActive }) =>
@@ -57,7 +57,7 @@ export default function Sidebar({ collapsed }) {
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          ⚡ {!collapsed && "Template"}
+          🕘 {!collapsed && "Lịch Sử Gửi Mail"}
         </NavLink>
       </nav>
     </aside>
