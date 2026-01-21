@@ -185,6 +185,8 @@ export default function Customers() {
         loading={loading}
         {...paginatorProps}
         emptyMessage="Chưa có khách hàng"
+        showGridlines
+        tableStyle={{ minWidth: "50rem" }}
       >
         <Column
           header="STT"
@@ -202,6 +204,7 @@ export default function Customers() {
             }
           }}
           style={{ width: "80px", textAlign: "center" }}
+          bodyStyle={{ textAlign: "center" }}
         />
 
         <Column field="name" header="Tên" />

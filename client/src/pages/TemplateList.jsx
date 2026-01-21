@@ -152,6 +152,7 @@ export default function TemplateList() {
           value={templates}
           loading={loading}
           {...paginatorProps}
+          showGridlines 
           emptyMessage="Chưa có template nào"
           className="text-sm"
         >

@@ -437,6 +437,7 @@ export default function SendMail() {
         selection={selectedRows}
         onSelectionChange={handleSelectionChange}
         emptyMessage="Chưa có khách hàng"
+        showGridlines 
       >
         <Column selectionMode="multiple" style={{ width: "3rem" }} />
 

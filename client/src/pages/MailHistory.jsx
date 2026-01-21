@@ -58,6 +58,7 @@ export default function MailHistory() {
         loading={loading}
         {...paginatorProps}
         emptyMessage="Chưa có lịch sử gửi mail"
+        showGridlines 
       >
         <Column
           header="STT"
