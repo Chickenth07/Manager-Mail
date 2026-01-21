@@ -14,12 +14,12 @@ import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 export default function Customers() {
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const navigate = useNavigate();
 
-  /* ================= AUTH ================= */
   const { isLoggedIn } = useAuthStore();
 
-  /* ================= STORE ================= */
   const {
     customers,
     total,
@@ -27,6 +27,7 @@ export default function Customers() {
     fetchCustomers,
     addCustomer,
     updateCustomer,
+    uploadCustomerImage,
     deleteCustomer,
   } = useCustomerStore();
 
@@ -55,6 +56,10 @@ export default function Customers() {
     phone: "",
   });
 
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+
   /* ================= GUARD LOGIN ================= */
   useEffect(() => {
     if (!isLoggedIn) navigate("/");
@@ -65,6 +70,14 @@ export default function Customers() {
     if (!isLoggedIn) return;
     fetchCustomers(page, rows);
   }, [isLoggedIn, page, rows, fetchCustomers]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   /* ================= VALIDATE ================= */
   const validateForm = () => {
@@ -93,6 +106,8 @@ export default function Customers() {
   const openAdd = () => {
     setEditingCustomer(null);
     setForm({ name: "", email: "", phone: "" });
+    setImageFile(null);
+    setImagePreview(null);
     setErrors({});
     setVisible(true);
   };
@@ -104,6 +119,8 @@ export default function Customers() {
       email: customer.email || "",
       phone: customer.phone || "",
     });
+    setImageFile(null);
+    setImagePreview(customer.image ? `${API_URL}${customer.image}` : null);
     setErrors({});
     setVisible(true);
   };
@@ -111,14 +128,31 @@ export default function Customers() {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    if (editingCustomer) {
-      await updateCustomer(editingCustomer._id, form);
-    } else {
-      await addCustomer(form);
-    }
+    try {
+      setSaving(true);
+      let customerId;
 
-    setVisible(false);
-    setPage(1);
+      if (editingCustomer) {
+        await updateCustomer(editingCustomer._id, form);
+        customerId = editingCustomer._id;
+      } else {
+        const created = await addCustomer(form);
+        customerId = created._id;
+      }
+
+      if (imageFile && customerId) {
+        await uploadCustomerImage(customerId, imageFile);
+      }
+
+      await fetchCustomers(1, rows);
+
+      setVisible(false);
+      setPage(1);
+    } catch (err) {
+      console.error("Save customer failed:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const confirmDelete = (customer) => {
@@ -130,7 +164,7 @@ export default function Customers() {
       rejectLabel: "Hủy",
       accept: async () => {
         await deleteCustomer(customer._id);
-        setPage(1);
+        await fetchCustomers(page, rows);
       },
     });
   };
@@ -139,15 +173,9 @@ export default function Customers() {
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">
-          Quản lý khách hàng
-        </h2>
+        <h2 className="text-xl font-semibold">Quản lý khách hàng</h2>
 
-        <Button
-          label="Thêm khách hàng"
-          icon="pi pi-plus"
-          onClick={openAdd}
-        />
+        <Button label="Thêm khách hàng" icon="pi pi-plus" onClick={openAdd} />
       </div>
 
       <DataTable
@@ -158,23 +186,25 @@ export default function Customers() {
       >
         <Column
           header="STT"
-          body={(_, options) =>{
-            if (rows === 5){
-              return (page - 1) * (rows - 5) + options.rowIndex + 1
-            } if (rows === 10) {
-              return (page - 1) * (rows - 10) + options.rowIndex + 1
-            } if (rows === 20) {
-              return (page - 1) * (rows - 20) + options.rowIndex + 1
-            } else {
-              return (page - 1) * (rows - 50) + options.rowIndex + 1
-            }
-          }}
+          body={(_, options) => (page - 1) * rows + options.rowIndex + 1}
           style={{ width: "80px", textAlign: "center" }}
         />
 
         <Column field="name" header="Tên" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
+        <Column
+          header="Ảnh"
+          body={(row) =>
+            row.image ? (
+              <img
+                src={`http://localhost:3000${row.image}`}
+                className="w-10 h-10 object-cover border"
+              />
+            ) : null
+          }
+          style={{ width: "80px", textAlign: "center" }}
+        />
 
         <Column
           header="Tính năng"
@@ -200,7 +230,13 @@ export default function Customers() {
       <Dialog
         header={editingCustomer ? "Cập nhật thông tin" : "Thêm khách hàng"}
         visible={visible}
-        onHide={() => setVisible(false)}
+        onHide={() => {
+          setVisible(false);
+          setEditingCustomer(null);
+          setImageFile(null);
+          setImagePreview(null);
+          setErrors({});
+        }}
         style={{ width: "30rem" }}
       >
         <div className="p-fluid">
@@ -216,9 +252,7 @@ export default function Customers() {
                 }
               }}
             />
-            {errors.name && (
-              <small className="p-error">{errors.name}</small>
-            )}
+            {errors.name && <small className="p-error">{errors.name}</small>}
           </div>
 
           <div className="field mb-3">
@@ -233,26 +267,43 @@ export default function Customers() {
                 }
               }}
             />
-            {errors.email && (
-              <small className="p-error">{errors.email}</small>
-            )}
+            {errors.email && <small className="p-error">{errors.email}</small>}
           </div>
 
           <div className="field mb-3">
             <label>Số điện thoại</label>
             <InputText
               value={form.phone}
-              onChange={(e) =>
-                setForm({ ...form, phone: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </div>
 
-          <Button
-            label="Lưu"
-            icon="pi pi-check"
-            onClick={handleSubmit}
-          />
+          <div className="field mb-3">
+            <label>Ảnh khách hàng</label>
+
+            {imagePreview && (
+              <div className="mb-2">
+                <img
+                  src={imagePreview}
+                  className="w-32 h-32 object-cover border"
+                />
+              </div>
+            )}
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                setImageFile(file);
+                setImagePreview(URL.createObjectURL(file));
+              }}
+            />
+          </div>
+
+          <Button label="Lưu" icon="pi pi-check" onClick={handleSubmit} />
         </div>
       </Dialog>
 

@@ -1,14 +1,25 @@
 import express from "express";
 import mongoose from "mongoose";
+import path from "path";
+import fs from "fs";
 import { transporter } from "../utils/mailer.js";
 import Customer from "../models/Customer.js";
 import MailLog from "../models/MailLog.js";
 
-
 const router = express.Router();
+
+/* ================= TEMPLATE RENDER ================= */
+const renderTemplate = (template, data) => {
+  return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => {
+    return data[key] ?? "";
+  });
+};
 
 /* ================= SEND MAIL ================= */
 router.post("/send", async (req, res) => {
+  let customers = [];
+  let emails = [];
+
   try {
     const {
       subject,
@@ -17,190 +28,170 @@ router.post("/send", async (req, res) => {
       externalEmails = [],
       customerIds = [],
       excludedIds = [],
-      editorImages = [], // Array of { filename, base64, contentType }
-      attachments = [], // Array of { filename, base64, contentType }
+      editorImages = [],
+      attachments = [],
     } = req.body;
 
-    // Validation
     if (!subject || !content) {
       return res.status(400).json({ message: "Thiếu subject hoặc content" });
     }
 
     const sendAll = sendToAll === true || sendToAll === "true";
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    let emails = [];
-
-    /* ================= SEND TO ALL ================= */
+    /* ================= GET CUSTOMERS ================= */
     if (sendAll) {
-      const excludedSet = new Set(
-        (Array.isArray(excludedIds) ? excludedIds : [excludedIds]).map(String)
-      );
-
-      const customers = await Customer.find({}, "email _id");
-
-      emails = customers
-        .filter((c) => !excludedSet.has(String(c._id)))
-        .map((c) => c.email)
-        .filter((email) => email); // Remove empty emails
+      customers = await Customer.find({
+        where: {
+          _id: { $nin: excludedIds },
+          email: { $ne: "" },
+        },
+        attr: "name email image",
+      });
     } else {
-      /* ================= SEND TO SELECTED ================= */
       const ids = Array.isArray(customerIds) ? customerIds : [customerIds];
-
       const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
 
-      if (!validIds.length && (!externalEmails || externalEmails.length === 0)) {
-        return res.status(400).json({ message: "Không có người nhận hợp lệ" });
-      }
-
-      const customers = await Customer.find({
-        where: { _id: { $in: validIds } },
-        attr: "email",
+      customers = await Customer.find({
+        where: { _id: { $in: validIds }, email: { $ne: "" } },
+        attr: "name email image",
       });
+    }
 
-      emails = customers.map((c) => c.email).filter((email) => email); // Remove empty emails
+    /* ================= EMAIL LIST ================= */
+    emails = customers.map((c) => c.email);
 
-      /* ================= ADD EXTERNAL EMAILS ================= */
-      if (Array.isArray(externalEmails) && externalEmails.length > 0) {
-        emails.push(
-          ...externalEmails.filter(
-            (email) => typeof email === "string" && email.trim()
-          )
-        );
-      }
+    if (Array.isArray(externalEmails)) {
+      emails.push(...externalEmails.filter(Boolean));
     }
 
     emails = [...new Set(emails.map((e) => e.toLowerCase()))];
 
     if (!emails.length) {
-      return res.status(400).json({ message: "Không tìm thấy email hợp lệ" });
+      return res.status(400).json({ message: "Không có email hợp lệ" });
     }
 
-    /* ================= PROCESS ATTACHMENTS ================= */
+    /* ================= ATTACHMENTS ================= */
     const mailAttachments = [];
 
-    // File attachments thông thường
-    if (Array.isArray(attachments)) {
-      attachments.forEach((file) => {
-        if (file.base64 && file.filename) {
-          mailAttachments.push({
-            filename: file.filename,
-            content: file.base64.split(",")[1] || file.base64, // Remove data:image/...;base64,
-            encoding: "base64",
-          });
-        }
-      });
-    }
-
-    // Ảnh từ editor - embed vào HTML với CID
-    let finalHtml = content;
-
-    if (Array.isArray(editorImages) && editorImages.length > 0) {
-      const imageMap = new Map();
-
-      editorImages.forEach((img, index) => {
-        if (img.base64 && img.filename) {
-          const cid = `editor-image-${Date.now()}-${index}@nodemailer`;
-          imageMap.set(index, cid);
-
-          // Thêm vào attachments với cid
-          mailAttachments.push({
-            filename: img.filename,
-            content: img.base64.split(",")[1] || img.base64,
-            encoding: "base64",
-            cid: cid,
-          });
-        }
-      });
-
-      // Thay thế base64 images trong HTML bằng cid references
-      let imageIndex = 0;
-      finalHtml = content.replace(
-        /<img([^>]+)src="data:image\/[^;]+;base64,[^"]*"([^>]*)>/gi,
-        (match, before, after) => {
-          const cid = imageMap.get(imageIndex);
-          imageIndex++;
-
-          if (cid) {
-            return `<img${before}src="cid:${cid}"${after}>`;
-          }
-          return match;
-        }
-      );
-    }
-
-    /* ================= SEND MAIL ================= */
-    const mailOptions = {
-      from: `"Mail Manager" <${process.env.MAIL_USER}>`,
-      bcc: emails.join(","), // Dùng BCC để ẩn danh sách người nhận
-      subject: subject,
-      html: finalHtml,
-    };
-
-    // Chỉ thêm attachments nếu có
-    if (mailAttachments.length > 0) {
-      mailOptions.attachments = mailAttachments;
-    }
-
-    // await transporter.sendMail(mailOptions);
-
-    await transporter.sendMail({
-      from: `"Mail Manager" <${process.env.MAIL_USER}>`,
-      bcc: emails,
-      subject,
-      html: finalHtml,
-      attachments: mailAttachments,
+    attachments.forEach((file) => {
+      if (file.base64 && file.filename) {
+        mailAttachments.push({
+          filename: file.filename,
+          content: file.base64.split(",")[1] || file.base64,
+          encoding: "base64",
+        });
+      }
     });
 
+    let finalHtml = content;
+
+    editorImages.forEach((img, index) => {
+      const cid = `editor-${index}@mail`;
+
+      mailAttachments.push({
+        filename: img.filename || `editor-${index}.png`,
+        content: img.base64.split(",")[1],
+        encoding: "base64",
+        cid,
+      });
+
+      finalHtml = finalHtml.replace(img.base64, `cid:${cid}`);
+    });
+
+    /* ================= SEND MAIL (ONE BY ONE) ================= */
+    let successCount = 0;
+
+    for (const customer of customers) {
+      const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
+
+      /* ===== AVATAR CUSTOMER (CID) ===== */
+      let avatarCid = null;
+
+      console.log("Customer image field:", customer.image);
+
+      if (customer.image) {
+        const relativePath = customer.image.replace(/^\/+/, "");
+
+        const filePath = path.join(process.cwd(), "public", relativePath);
+
+        console.log("Resolved filePath:", filePath);
+        console.log("File exists:", fs.existsSync(filePath));
+
+        if (fs.existsSync(filePath)) {
+          avatarCid = `avatar-${customer._id}@mail`;
+
+          perMailAttachments.push({
+            filename: path.basename(filePath),
+            path: filePath,
+            cid: avatarCid,
+            contentDisposition: "inline",
+          });
+        }
+      }
+
+      const data = {
+        name: customer.name,
+        email: customer.email,
+
+        // HTML IMG – CHỈ CID
+        imageTag: `
+          <img
+            src="cid:${avatarCid}"
+            alt="${customer.name}"
+            width="600"
+            height="640"
+            style="border-radius:8px;object-fit:cover"
+          />
+        `,
+      };
+
+      const personalizedSubject = renderTemplate(subject, data);
+      const personalizedHtml = renderTemplate(finalHtml, data);
+
+      console.log("CID:", avatarCid);
+      console.log(
+        "Attachments:",
+        perMailAttachments.map((a) => a.cid)
+      );
+
+      await transporter.sendMail({
+        from: `"Mail Manager" <${process.env.MAIL_USER}>`,
+        to: customer.email,
+        subject: personalizedSubject,
+        html: personalizedHtml,
+        attachments: perMailAttachments,
+      });
+
+      successCount++;
+    }
+
+    /* ================= LOG ================= */
     await MailLog.create({
       subject,
       content: finalHtml,
       recipients: emails,
-      successCount: emails.length,
+      successCount,
       failCount: 0,
       status: "success",
     });
 
     res.json({
       success: true,
-      count: emails.length,
-      message: `Đã gửi email đến ${emails.length} khách hàng`,
+      count: successCount,
+      message: `Đã gửi ${successCount} email`,
     });
   } catch (err) {
-    console.error("❌ SEND MAIL ERROR:", err);
+    console.error("SEND MAIL ERROR:", err);
 
-    /* ===== SAVE LOG (FAILED) ===== */
     await MailLog.create({
-      subject: req.body?.subject || "(unknown)",
-      content: req.body?.content || "",
+      subject: req.body?.subject,
+      content: req.body?.content,
       recipients: emails,
       successCount: 0,
       failCount: emails.length,
       status: "failed",
-      failedDetails: emails.map(e => ({
-        email: e,
-        error: err.message,
-      })),
     });
 
-
-    res.status(500).json({
-      success: false,
-      message: err.message || "Có lỗi xảy ra khi gửi email",
-    });
-  }
-});
-
-/* ================= TEST MAIL CONNECTION ================= */
-router.get("/test", async (req, res) => {
-  try {
-    await transporter.verify();
-    res.json({
-      success: true,
-      message: "Mail server connection successful",
-    });
-  } catch (err) {
-    console.error("Mail connection error:", err);
     res.status(500).json({
       success: false,
       message: err.message,

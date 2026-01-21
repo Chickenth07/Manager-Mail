@@ -6,8 +6,10 @@ import db from "./config/db/index.js";
 
 import authRoute from "./routes/auth.route.js";
 import customerRoute from "./routes/customer.route.js";
+import uploadRoute from "./routes/upload.route.js";
 import mailRoutes from "./routes/mail.route.js";
 import mailHistoryRoute from "./routes/mailHistory.route.js"
+import path from "path";
 
 dotenv.config();
 
@@ -24,6 +26,11 @@ app.use("/api", authRoute);
 app.use("/api/customers", customerRoute);
 app.use("/api/mail", mailRoutes);
 app.use("/api/mail-history", mailHistoryRoute);
+app.use("/api", uploadRoute);
+app.use(
+  "/uploads",
+  express.static(path.join(process.cwd(), "public/uploads"))
+);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

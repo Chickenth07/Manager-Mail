@@ -15,6 +15,11 @@ Customer.init("customers", {
 
   phone: String,
 
+  image: {
+    type: String,
+    default: null,
+  },
+
   deletedAt: {
     type: Date,
     default: null,
