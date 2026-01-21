@@ -139,8 +139,7 @@ router.post("/send", async (req, res) => {
             src="cid:${avatarCid}"
             alt="${customer.name}"
             width="600"
-            height="640"
-            style="object-fit:cover"
+            style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
           />
         `,
       };

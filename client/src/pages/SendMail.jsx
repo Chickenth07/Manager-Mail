@@ -45,6 +45,8 @@ export default function SendMail() {
   const [attachments, setAttachments] = useState([]); // { filename, base64, contentType }
   const [editorImages, setEditorImages] = useState([]); // { filename, base64, contentType }
 
+  const [sending, setSending] = useState(false);
+
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     fetchCustomers(page, rows);
@@ -142,6 +144,7 @@ export default function SendMail() {
 
   /* ================= HANDLE ATTACHMENT FILES ================= */
   const handleAttachmentFiles = (files) => {
+    console.log("ATTACH FILES:", files);
     if (!Array.isArray(files)) return;
 
     files.forEach((file) => {
@@ -186,6 +189,8 @@ export default function SendMail() {
     console.log("📢 Count:", selectedCount);
 
     try {
+      setSending(true);
+
       const res = await fetch("http://localhost:3000/api/mail/send", {
         method: "POST",
         headers: {
@@ -210,6 +215,8 @@ export default function SendMail() {
       setSendToAll(false);
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -276,68 +283,66 @@ export default function SendMail() {
         <div className="field mb-3">
           <label>Nội dung email</label>
 
-          <CKEditor
-            editor={Editor}
-            data={content}
-            config={{
-              extraPlugins: [
-                function (editor) {
-                  editor.plugins.get("FileRepository").createUploadAdapter = (
-                    loader
-                  ) => {
-                    return {
-                      upload: () => {
-                        return loader.file.then((file) => {
-                          // Validate file size
-                          const maxSize = 5 * 1024 * 1024; // 5MB
-                          if (file.size > maxSize) {
-                            throw new Error(
-                              "File quá lớn. Kích thước tối đa là 5MB"
-                            );
-                          }
-
-                          // Validate file type
-                          if (!file.type.startsWith("image/")) {
-                            throw new Error("Chỉ chấp nhận file ảnh");
-                          }
-
-                          // Lưu file vào state
-                          handleEditorImageUpload(file);
-
-                          // Tạo URL base64 để hiển thị trong editor
-                          return new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-
-                            reader.onload = () => {
-                              resolve({
-                                default: reader.result,
-                              });
-                            };
-
-                            reader.onerror = () => {
-                              reject(new Error("Không thể đọc file"));
-                            };
-
-                            reader.readAsDataURL(file);
+          <div className="email-editor-wrapper">
+            <CKEditor
+              editor={Editor}
+              data={content}
+              config={{
+                extraPlugins: [
+                  function (editor) {
+                    editor.plugins.get("FileRepository").createUploadAdapter = (
+                      loader
+                    ) => {
+                      return {
+                        upload: () => {
+                          return loader.file.then((file) => {
+                            const maxSize = 5 * 1024 * 1024; // 5MB
+                            if (file.size > maxSize) {
+                              throw new Error(
+                                "File quá lớn. Kích thước tối đa là 5MB"
+                              );
+                            }
+  
+                            if (!file.type.startsWith("image/")) {
+                              throw new Error("Chỉ chấp nhận file ảnh");
+                            }
+  
+                            handleEditorImageUpload(file);
+  
+                            return new Promise((resolve, reject) => {
+                              const reader = new FileReader();
+  
+                              reader.onload = () => {
+                                resolve({
+                                  default: reader.result,
+                                });
+                              };
+  
+                              reader.onerror = () => {
+                                reject(new Error("Không thể đọc file"));
+                              };
+  
+                              reader.readAsDataURL(file);
+                            });
                           });
-                        });
-                      },
-                      abort: () => {},
+                        },
+                        abort: () => {},
+                      };
                     };
-                  };
-                },
-              ],
-            }}
-            onReady={(editor) => {
-              editor.on("attach-files", (evt, files) => {
-                if (!Array.isArray(files)) return;
-                handleAttachmentFiles(files);
-              });
-            }}
-            onChange={(event, editor) => {
-              setContent(editor.getData());
-            }}
-          />
+                  },
+                ],
+              }}
+              onReady={(editor) => {
+                editor.on("attach-files", (evt, files) => {
+                  if (!Array.isArray(files)) return;
+                  handleAttachmentFiles(files);
+                });
+              }}
+              onChange={(event, editor) => {
+                setContent(editor.getData());
+              }}
+            />
+          </div>
         </div>
 
         {/* Hiển thị danh sách attachments */}
@@ -395,9 +400,9 @@ export default function SendMail() {
         )}
 
         <Button
-          label={`Gửi Email (${selectedCount})`}
-          icon="pi pi-send"
-          disabled={selectedCount === 0}
+          label={sending ? "Đang gửi email..." : `Gửi Email (${selectedCount})`}
+          icon={sending ? "pi pi-spin pi-spinner" : "pi pi-send"}
+          disabled={sending || selectedCount === 0}
           onClick={handleSend}
         />
       </div>
@@ -437,7 +442,7 @@ export default function SendMail() {
         selection={selectedRows}
         onSelectionChange={handleSelectionChange}
         emptyMessage="Chưa có khách hàng"
-        showGridlines 
+        showGridlines
       >
         <Column selectionMode="multiple" style={{ width: "3rem" }} />
 

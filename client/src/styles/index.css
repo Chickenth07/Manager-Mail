@@ -5,3 +5,20 @@
 
 @import "primereact/resources/themes/mdc-light-indigo/theme.css";
 @import 'primereact/resources/themes/mdc-light-deeppurple/theme.css';
+
+
+/* Fix chiều cao editor */
+.email-editor-wrapper .ck-editor__editable {
+    min-height: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  /* Giữ toolbar đứng yên */
+  .email-editor-wrapper .ck-editor__top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+  }
+  
