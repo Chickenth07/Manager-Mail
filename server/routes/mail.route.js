@@ -101,6 +101,9 @@ router.post("/send", async (req, res) => {
     /* ================= SEND MAIL (ONE BY ONE) ================= */
     let successCount = 0;
 
+    const needAvatar =
+      finalHtml.includes("{{imageTag}}") || finalHtml.includes("cid:avatar-");
+
     for (const customer of customers) {
       const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
 
@@ -109,13 +112,29 @@ router.post("/send", async (req, res) => {
 
       console.log("Customer image field:", customer.image);
 
-      if (customer.image) {
+      // if (customer.image) {
+      //   const relativePath = customer.image.replace(/^\/+/, "");
+
+      //   const filePath = path.join(process.cwd(), "public", relativePath);
+
+      //   console.log("Resolved filePath:", filePath);
+      //   console.log("File exists:", fs.existsSync(filePath));
+
+      //   if (fs.existsSync(filePath)) {
+      //     avatarCid = `avatar-${customer._id}@mail`;
+
+      //     perMailAttachments.push({
+      //       filename: path.basename(filePath),
+      //       path: filePath,
+      //       cid: avatarCid,
+      //       contentDisposition: "inline",
+      //     });
+      //   }
+      // }
+
+      if (needAvatar && customer.image) {
         const relativePath = customer.image.replace(/^\/+/, "");
-
         const filePath = path.join(process.cwd(), "public", relativePath);
-
-        console.log("Resolved filePath:", filePath);
-        console.log("File exists:", fs.existsSync(filePath));
 
         if (fs.existsSync(filePath)) {
           avatarCid = `avatar-${customer._id}@mail`;
@@ -129,19 +148,34 @@ router.post("/send", async (req, res) => {
         }
       }
 
+      // const data = {
+      //   name: customer.name,
+      //   email: customer.email,
+
+      //   // HTML IMG – CHỈ CID
+      //   imageTag: `
+      //     <img
+      //       src="cid:${avatarCid}"
+      //       alt="${customer.name}"
+      //       width="600"
+      //       style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
+      //     />
+      //   `,
+      // };
+
       const data = {
         name: customer.name,
         email: customer.email,
-
-        // HTML IMG – CHỈ CID
-        imageTag: `
-          <img
-            src="cid:${avatarCid}"
-            alt="${customer.name}"
-            width="600"
-            style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
-          />
-        `,
+        imageTag: avatarCid
+          ? `
+            <img
+              src="cid:${avatarCid}"
+              alt="${customer.name}"
+              width="640"
+              style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
+            />
+          `
+          : "",
       };
 
       const personalizedSubject = renderTemplate(subject, data);
