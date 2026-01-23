@@ -13,6 +13,7 @@ import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Checkbox } from "primereact/checkbox";
+import { useLocation } from "react-router-dom";
 
 export default function SendMail() {
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
@@ -23,6 +24,12 @@ export default function SendMail() {
 
   const [externalEmails, setExternalEmails] = useState([]);
   const [externalInput, setExternalInput] = useState("");
+
+  const location = useLocation();
+  const templateData = location.state;
+
+  const plainTextToHtml = (text = "") =>
+  text.replace(/\n/g, "<br />");
 
   const paginatorProps = Paginator({
     page,
@@ -51,6 +58,13 @@ export default function SendMail() {
   useEffect(() => {
     fetchCustomers(page, rows);
   }, [page, rows, fetchCustomers]);
+
+  useEffect(() => {
+    if (templateData) {
+      setSubject(templateData.subject || "");
+      setContent(plainTextToHtml(templateData.html || ""));
+    }
+  }, [templateData]);
 
   //=======Validate=======//
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -302,26 +316,26 @@ export default function SendMail() {
                                 "File quá lớn. Kích thước tối đa là 5MB"
                               );
                             }
-  
+
                             if (!file.type.startsWith("image/")) {
                               throw new Error("Chỉ chấp nhận file ảnh");
                             }
-  
+
                             handleEditorImageUpload(file);
-  
+
                             return new Promise((resolve, reject) => {
                               const reader = new FileReader();
-  
+
                               reader.onload = () => {
                                 resolve({
                                   default: reader.result,
                                 });
                               };
-  
+
                               reader.onerror = () => {
                                 reject(new Error("Không thể đọc file"));
                               };
-  
+
                               reader.readAsDataURL(file);
                             });
                           });

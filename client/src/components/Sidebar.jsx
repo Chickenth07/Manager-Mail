@@ -27,7 +27,8 @@ export default function Sidebar({ collapsed }) {
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          👤 {!collapsed && "Khách hàng"}
+          <i className="pi pi-user text-lg" />
+          {!collapsed && "Khách Hàng"}
         </NavLink>
 
         <NavLink
@@ -37,7 +38,8 @@ export default function Sidebar({ collapsed }) {
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          ✉️ {!collapsed && "Gửi Mail"}
+          <i className="pi pi-envelope text-lg" />
+          {!collapsed && "Gửi Mail"}
         </NavLink>
 
         <NavLink
@@ -47,7 +49,8 @@ export default function Sidebar({ collapsed }) {
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          ⚡ {!collapsed && "Template"}
+          <i className="pi pi-bolt text-lg" />
+          {!collapsed && "Mail Mẫu"}
         </NavLink>
         
         <NavLink
@@ -57,7 +60,8 @@ export default function Sidebar({ collapsed }) {
             ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
           }
         >
-          🕘 {!collapsed && "Lịch Sử Gửi Mail"}
+          <i className="pi pi-history text-lg" />
+          {!collapsed && "Lịch Sử Gửi Mail"}
         </NavLink>
       </nav>
     </aside>

@@ -7,6 +7,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { useNavigate } from "react-router-dom";
 
 export default function TemplateList() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -22,6 +23,8 @@ export default function TemplateList() {
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
   const [total, setTotal] = useState(0);
+
+  const navigate = useNavigate();
 
   const paginatorProps = Paginator({
     page,
@@ -78,12 +81,7 @@ export default function TemplateList() {
       if (!res.ok) {
         throw new Error(data.message || "Save template failed");
       }
-
-      setVisible(false);
-      setEditingId(null);
-      setForm({ name: "", subject: "", html: "", description: "" });
-
-      setPage(1);
+      window.location.reload();
     } catch (err) {
       alert(err.message);
     } finally {
@@ -230,14 +228,14 @@ export default function TemplateList() {
 
       {/* ===== DIALOG THÊM TEMPLATE ===== */}
       <Dialog
-        header={editingId ? "Sửa Template Email" : "Thêm Template Email"}
+        header={editingId ? "Sửa mẫu Email" : "Thêm mẫu Email"}
         visible={visible}
         style={{ width: "40rem" }}
         onHide={() => setVisible(false)}
       >
         <div className="p-fluid">
           <div className="field mb-3">
-            <label>Tên Template</label>
+            <label>Tên mẫu</label>
             <InputText
               value={form.name}
               className={errors.name ? "p-invalid" : ""}
@@ -269,7 +267,7 @@ export default function TemplateList() {
           </div>
 
           <div className="field mb-3">
-            <label>Nội dung HTML</label>
+            <label>Nội dung</label>
             <InputTextarea
               rows={8}
               value={form.html}
@@ -294,6 +292,22 @@ export default function TemplateList() {
         visible={!!viewTemplate}
         style={{ width: "50rem" }}
         onHide={() => setViewTemplate(null)}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              label="Dùng ngay"
+              icon="pi pi-send"
+              onClick={() => {
+                navigate("/send-mail", {
+                  state: {
+                    subject: viewTemplate.subject,
+                    html: viewTemplate.html,
+                  },
+                });
+              }}
+            />
+          </div>
+        }
       >
         {viewTemplate && (
           <>
@@ -302,7 +316,10 @@ export default function TemplateList() {
             </div>
 
             <div className="border p-3 rounded bg-slate-50">
-              <div dangerouslySetInnerHTML={{ __html: viewTemplate.html }} />
+              <div
+                style={{ whiteSpace: "pre-wrap" }}
+                dangerouslySetInnerHTML={{ __html: viewTemplate.html }}
+              />
             </div>
           </>
         )}
