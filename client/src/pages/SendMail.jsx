@@ -28,8 +28,14 @@ export default function SendMail() {
   const location = useLocation();
   const templateData = location.state;
 
-  const plainTextToHtml = (text = "") =>
-  text.replace(/\n/g, "<br />");
+  const splitEmails = (input = "") => {
+    return input
+      .split(/[\s,;]+/)
+      .map((e) => e.trim())
+      .filter(Boolean);
+  };
+
+  const plainTextToHtml = (text = "") => text.replace(/\n/g, "<br />");
 
   const paginatorProps = Paginator({
     page,
@@ -70,17 +76,30 @@ export default function SendMail() {
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const addExternalEmail = () => {
-    const email = externalInput.trim();
-    if (!email) return;
+    const emails = splitEmails(externalInput);
 
-    if (!isValidEmail(email)) {
-      alert("Email không hợp lệ");
-      return;
+    if (emails.length === 0) return;
+
+    const validEmails = [];
+    const invalidEmails = [];
+
+    emails.forEach((email) => {
+      if (isValidEmail(email)) {
+        validEmails.push(email);
+      } else {
+        invalidEmails.push(email);
+      }
+    });
+
+    if (invalidEmails.length > 0) {
+      alert(`Email không hợp lệ:\n${invalidEmails.join("\n")}`);
     }
 
-    setExternalEmails((prev) =>
-      prev.includes(email) ? prev : [...prev, email]
-    );
+    setExternalEmails((prev) => {
+      const merged = [...prev, ...validEmails];
+      return Array.from(new Set(merged)); // loại trùng
+    });
+
     setExternalInput("");
   };
 
@@ -248,7 +267,7 @@ export default function SendMail() {
 
           <div className="flex gap-2">
             <InputText
-              placeholder="Nhập email, nhấn Enter"
+              placeholder="Nhập email (cách nhau bằng , ; hoặc Enter)"
               value={externalInput}
               onChange={(e) => setExternalInput(e.target.value)}
               onKeyDown={(e) => {
@@ -256,6 +275,12 @@ export default function SendMail() {
                   e.preventDefault();
                   addExternalEmail();
                 }
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pasted = e.clipboardData.getData("text");
+                setExternalInput(pasted);
+                setTimeout(addExternalEmail, 0);
               }}
               className="flex-1"
             />
@@ -351,10 +376,23 @@ export default function SendMail() {
                   if (!Array.isArray(files)) return;
                   handleAttachmentFiles(files);
                 });
+                const model = editor.model;
+              
+                model.document.on("change:data", () => {
+                  model.change((writer) => {
+                    const root = model.document.getRoot();
+              
+                    for (const child of Array.from(root.getChildren())) {
+                      if (child.name === "fileBlock" || child.name === "fileInline") {
+                        writer.remove(child);
+                      }
+                    }
+                  });
+                });
               }}
-              onChange={(event, editor) => {
-                setContent(editor.getData());
-              }}
+              // onChange={(event, editor) => {
+              //   setContent(editor.getData());
+              // }}
             />
           </div>
         </div>

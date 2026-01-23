@@ -38,6 +38,13 @@ router.post("/send", async (req, res) => {
 
     const sendAll = sendToAll === true || sendToAll === "true";
 
+    const customerEmails = customers.map((c) => c.email.toLowerCase());
+
+    const externalOnlyEmails = externalEmails
+      .map((e) => e.toLowerCase())
+      .filter((e) => !customerEmails.includes(e));
+
+
     /* ================= GET CUSTOMERS ================= */
     if (sendAll) {
       customers = await Customer.find({
@@ -195,6 +202,18 @@ router.post("/send", async (req, res) => {
         attachments: perMailAttachments,
       });
 
+      successCount++;
+    }
+
+    for (const email of externalOnlyEmails) {
+      await transporter.sendMail({
+        from: `"S-Tech" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject,
+        html: finalHtml.replace(/{{\s*imageTag\s*}}/g, ""),
+        attachments: mailAttachments,
+      });
+    
       successCount++;
     }
 
