@@ -171,7 +171,7 @@ router.post("/send", async (req, res) => {
       // };
 
       const data = {
-        name: customer.name,
+        name: `<strong>${customer.name}</strong>`,
         email: customer.email,
         imageTag: avatarCid
           ? `
