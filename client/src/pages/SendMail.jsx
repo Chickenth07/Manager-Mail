@@ -46,6 +46,30 @@ export default function SendMail() {
       setRows(rows);
     },
   });
+  const normalizeEmailTable = (html = "") => {
+    let result = html;
+  
+    // Fix table
+    result = result.replace(
+      /<table(?![^>]*width)/g,
+      '<table width="100%" cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse; table-layout:fixed;"'
+    );
+  
+    // Fix th
+    result = result.replace(
+      /<th/g,
+      '<th style="border:1px solid #ccc; font-weight:bold; text-align:left;"'
+    );
+  
+    // Fix td
+    result = result.replace(
+      /<td/g,
+      '<td style="border:1px solid #ccc; word-break:break-word;"'
+    );
+  
+    return result;
+  };
+  
 
   /* ================= SELECTION ================= */
   const [sendToAll, setSendToAll] = useState(false);
@@ -208,9 +232,11 @@ export default function SendMail() {
       return;
     }
 
+    const safeContent = normalizeEmailTable(content);
+
     const payload = {
       subject,
-      content,
+      content: safeContent,
       sendToAll,
       customerIds: sendToAll ? [] : selectedIds,
       excludedIds: sendToAll ? excludedIds : [],
