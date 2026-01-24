@@ -376,23 +376,10 @@ export default function SendMail() {
                   if (!Array.isArray(files)) return;
                   handleAttachmentFiles(files);
                 });
-                const model = editor.model;
-              
-                model.document.on("change:data", () => {
-                  model.change((writer) => {
-                    const root = model.document.getRoot();
-              
-                    for (const child of Array.from(root.getChildren())) {
-                      if (child.name === "fileBlock" || child.name === "fileInline") {
-                        writer.remove(child);
-                      }
-                    }
-                  });
-                });
               }}
-              // onChange={(event, editor) => {
-              //   setContent(editor.getData());
-              // }}
+              onChange={(event, editor) => {
+                setContent(editor.getData());
+              }}
             />
           </div>
         </div>

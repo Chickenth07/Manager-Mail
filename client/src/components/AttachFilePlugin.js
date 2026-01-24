@@ -24,18 +24,6 @@ export default class AttachFilePlugin extends Plugin {
           if (!files.length) return;
 
           editor.fire("attach-files", files);
-
-          editor.model.change(writer => {
-            const position =
-              editor.model.document.selection.getFirstPosition();
-
-            files.forEach(file => {
-              writer.insertText(
-                `📎 ${file.name}\n`,
-                position
-              );
-            });
-          });
         };
 
         input.click();
