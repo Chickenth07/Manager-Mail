@@ -51,7 +51,8 @@ export default function Customers() {
   const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
-    name: "",
+    name: "", 
+    company: "",
     email: "",
     phone: "",
   });
@@ -105,7 +106,7 @@ export default function Customers() {
   /* ================= HANDLERS ================= */
   const openAdd = () => {
     setEditingCustomer(null);
-    setForm({ name: "", email: "", phone: "" });
+    setForm({ name: "", company: "", email: "", phone: "" });
     setImageFile(null);
     setImagePreview(null);
     setErrors({});
@@ -116,6 +117,7 @@ export default function Customers() {
     setEditingCustomer(customer);
     setForm({
       name: customer.name || "",
+      company: customer.company || "",
       email: customer.email || "",
       phone: customer.phone || "",
     });
@@ -212,6 +214,7 @@ export default function Customers() {
         />
 
         <Column field="name" header="Tên" />
+        <Column field="company" header="Công ty" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
         <Column
@@ -279,6 +282,14 @@ export default function Customers() {
               }}
             />
             {errors.name && <small className="p-error">{errors.name}</small>}
+          </div>
+
+          <div className="field mb-3">
+            <label>Công ty</label>
+            <InputText
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+            />
           </div>
 
           <div className="field mb-3">

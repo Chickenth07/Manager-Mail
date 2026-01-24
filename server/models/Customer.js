@@ -9,6 +9,12 @@ Customer.init("customers", {
     trim: true,
   },
 
+  company: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+
   email: {
     type: String,
     required: true,

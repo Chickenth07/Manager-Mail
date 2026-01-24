@@ -504,6 +504,7 @@ export default function SendMail() {
         />
 
         <Column field="name" header="Tên" />
+        <Column field="company" header="Công ty" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
       </DataTable>

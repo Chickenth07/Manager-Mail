@@ -9,10 +9,35 @@ import MailLog from "../models/MailLog.js";
 const router = express.Router();
 
 /* ================= TEMPLATE RENDER ================= */
+// const renderTemplate = (template, data) => {
+//   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => {
+//     return data[key] ?? "";
+//   });
+// };
+
 const renderTemplate = (template, data) => {
-  return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => {
-    return data[key] ?? "";
+  // 1. In đậm: $name$
+  template = template.replace(/\$(\w+)\$/g, (_, key) => {
+    const value = data[key] ?? "";
+    return `<strong>${escapeHtml(value)}</strong>`;
   });
+
+  // 2. In thường: $name
+  template = template.replace(/\$(\w+)/g, (_, key) => {
+    return escapeHtml(data[key] ?? "");
+  });
+
+  return template;
+};
+
+const escapeHtml = (text) => {
+  if (typeof text !== "string") return text;
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 };
 
 /* ================= SEND MAIL ================= */
@@ -52,7 +77,7 @@ router.post("/send", async (req, res) => {
           _id: { $nin: excludedIds },
           email: { $ne: "" },
         },
-        attr: "name email image",
+        attr: "name company email image",
       });
     } else {
       const ids = Array.isArray(customerIds) ? customerIds : [customerIds];
@@ -60,7 +85,7 @@ router.post("/send", async (req, res) => {
 
       customers = await Customer.find({
         where: { _id: { $in: validIds }, email: { $ne: "" } },
-        attr: "name email image",
+        attr: "name company email image",
       });
     }
 
@@ -171,7 +196,8 @@ router.post("/send", async (req, res) => {
       // };
 
       const data = {
-        name: `<strong>${customer.name}</strong>`,
+        name: customer.name,
+        company: customer.company,
         email: customer.email,
         imageTag: avatarCid
           ? `
@@ -188,6 +214,7 @@ router.post("/send", async (req, res) => {
       const personalizedSubject = renderTemplate(subject, data);
       const personalizedHtml = renderTemplate(finalHtml, data);
 
+      console.log("HTML AFTER RENDER:", personalizedHtml);
       console.log("CID:", avatarCid);
       console.log(
         "Attachments:",
@@ -201,7 +228,6 @@ router.post("/send", async (req, res) => {
         html: personalizedHtml,
         attachments: perMailAttachments,
       });
-
       successCount++;
     }
 
