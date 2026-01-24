@@ -1,0 +1,90 @@
+import {
+  ClassicEditor,
+  Autosave,
+  Essentials,
+  Paragraph,
+  Autoformat,
+  TextTransformation,
+  Bold,
+  TableColumnResize,
+  Table,
+  TableToolbar,
+  Mention,
+  Heading,
+  Indent,
+  IndentBlock,
+  Italic,
+  ListProperties,
+  List,
+  PasteFromOffice,
+  TableCaption,
+  TableCellProperties,
+  TableProperties,
+  TodoList,
+  Underline,
+  GeneralHtmlSupport,
+} from "ckeditor5";
+
+export default class Editor extends ClassicEditor {}
+
+Editor.builtinPlugins = [
+  Autoformat,
+  Autosave,
+  Bold,
+  Essentials,
+  Heading,
+  Indent,
+  IndentBlock,
+  Italic,
+  List,
+  ListProperties,
+  Mention,
+  Paragraph,
+  PasteFromOffice,
+  Table,
+  TableCaption,
+  TableCellProperties,
+  TableColumnResize,
+  TableProperties,
+  TableToolbar,
+  TextTransformation,
+  TodoList,
+  Underline,
+  GeneralHtmlSupport,
+];
+
+Editor.defaultConfig = {
+  licenseKey: "GPL",
+  language: "vi",
+
+  toolbar: {
+    items: [
+      "undo",
+      "redo",
+      "|",
+      "heading",
+      "|",
+      "bold",
+      "italic",
+      "underline",
+      "|",
+      "insertTable",
+      "|",
+      "bulletedList",
+      "numberedList",
+      "todoList",
+    ],
+    shouldNotGroupWhenFull: true,
+  },
+
+  htmlSupport: {
+    allow: [
+      {
+        name: /.*/,
+        attributes: true,
+        classes: true,
+        styles: true,
+      },
+    ],
+  },
+};

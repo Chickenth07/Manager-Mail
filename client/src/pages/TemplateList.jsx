@@ -1,5 +1,8 @@
 import Paginator from "../components/Paginator";
+import Editor from "../ckeditor/editorTemplate";
 
+
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 import { useEffect, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
@@ -268,12 +271,18 @@ export default function TemplateList() {
 
           <div className="field mb-3">
             <label>Nội dung</label>
-            <InputTextarea
-              rows={8}
-              value={form.html}
-              className={errors.html ? "p-invalid" : ""}
-              onChange={(e) => setForm({ ...form, html: e.target.value })}
-            />
+
+            <div className="email-editor-wrapper">
+              <CKEditor
+                editor={Editor}
+                data={form.html}
+                onChange={(event, editor) => {
+                  const data = editor.getData();
+                  setForm({ ...form, html: data });
+                }}
+              />
+            </div>
+
             {errors.html && <small className="p-error">{errors.html}</small>}
           </div>
 
