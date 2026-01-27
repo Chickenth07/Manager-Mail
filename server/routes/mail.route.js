@@ -8,22 +8,16 @@ import MailLog from "../models/MailLog.js";
 
 const router = express.Router();
 
-/* ================= TEMPLATE RENDER ================= */
-// const renderTemplate = (template, data) => {
-//   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => {
-//     return data[key] ?? "";
-//   });
-// };
-
 const renderTemplate = (template, data) => {
-  // 1. In đậm: $name$
+  // $name$ → in đậm
   template = template.replace(/\$(\w+)\$/g, (_, key) => {
-    const value = data[key] ?? "";
-    return `<strong>${escapeHtml(value)}</strong>`;
+    if (key === "imageTag") return data[key] ?? "";
+    return `<strong>${escapeHtml(data[key] ?? "")}</strong>`;
   });
 
-  // 2. In thường: $name
+  // $name → thường
   template = template.replace(/\$(\w+)/g, (_, key) => {
+    if (key === "imageTag") return data[key] ?? "";
     return escapeHtml(data[key] ?? "");
   });
 
@@ -134,7 +128,7 @@ router.post("/send", async (req, res) => {
     let successCount = 0;
 
     const needAvatar =
-      finalHtml.includes("{{imageTag}}") || finalHtml.includes("cid:avatar-");
+      finalHtml.includes("$imageTag") || finalHtml.includes("cid:avatar-");
 
     for (const customer of customers) {
       const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
@@ -236,7 +230,7 @@ router.post("/send", async (req, res) => {
         from: `"S-Tech" <${process.env.MAIL_USER}>`,
         to: email,
         subject,
-        html: finalHtml.replace(/{{\s*imageTag\s*}}/g, ""),
+        html: finalHtml.replace(/\$imageTag/g, ""),
         attachments: mailAttachments,
       });
     
