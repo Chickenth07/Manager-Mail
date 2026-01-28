@@ -16,6 +16,9 @@ import { Checkbox } from "primereact/checkbox";
 import { useLocation } from "react-router-dom";
 
 export default function SendMail() {
+  
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
   /* ================= PAGINATION (1-BASED) ================= */
@@ -250,7 +253,7 @@ export default function SendMail() {
     try {
       setSending(true);
 
-      const res = await fetch("http://localhost:3000/api/mail/send", {
+      const res = await fetch(`${API_URL}/mail/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

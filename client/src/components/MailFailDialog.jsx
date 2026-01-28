@@ -4,10 +4,13 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
 export default function MailFailDialog({ mailId, onHide }) {
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const [failures, setFailures] = useState([]);
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/mail-history/${mailId}/failures`)
+    fetch(`${API_URL}/mail-history/${mailId}/failures`)
       .then((res) => res.json())
       .then(setFailures);
   }, [mailId]);

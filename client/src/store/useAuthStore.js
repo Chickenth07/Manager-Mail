@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const useAuthStore = create((set) => ({
   user: JSON.parse(localStorage.getItem("user")) || null,
   isLoggedIn: !!localStorage.getItem("user"),
@@ -10,7 +12,7 @@ const useAuthStore = create((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const res = await fetch("http://localhost:3000/api/login", {
+      const res = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

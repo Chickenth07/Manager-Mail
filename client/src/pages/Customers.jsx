@@ -14,7 +14,6 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 export default function Customers() {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
-  const API_URL = import.meta.env.VITE_API_URL;
 
   const navigate = useNavigate();
 
@@ -123,7 +122,7 @@ export default function Customers() {
     });
     setImageFile(null);
     setImagePreview(
-      customer.image ? `http://localhost:3000${customer.image}` : null
+      customer.image ? `${BASE_URL}${customer.image}` : null
     );
     setErrors({});
     setVisible(true);
@@ -222,7 +221,7 @@ export default function Customers() {
           body={(row) =>
             row.image ? (
               <img
-                src={`http://localhost:3000${row.image}`}
+                src={`${BASE_URL}${row.image}`}
                 className="w-10 h-10 object-cover border"
                 onError={(e) => {
                   e.target.style.display = "none";
