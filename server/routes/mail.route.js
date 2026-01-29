@@ -24,6 +24,12 @@ const renderTemplate = (template, data) => {
   return template;
 };
 
+const GENDER_LABEL_MAP = {
+  male: "Ông",
+  female: "Bà",
+  other: "Ông/Bà",
+};
+
 const escapeHtml = (text) => {
   if (typeof text !== "string") return text;
   return text
@@ -71,7 +77,7 @@ router.post("/send", async (req, res) => {
           _id: { $nin: excludedIds },
           email: { $ne: "" },
         },
-        attr: "name company email image",
+        attr: "name gender company email image",
       });
     } else {
       const ids = Array.isArray(customerIds) ? customerIds : [customerIds];
@@ -79,7 +85,7 @@ router.post("/send", async (req, res) => {
 
       customers = await Customer.find({
         where: { _id: { $in: validIds }, email: { $ne: "" } },
-        attr: "name company email image",
+        attr: "name gender company email image",
       });
     }
 
@@ -191,6 +197,7 @@ router.post("/send", async (req, res) => {
 
       const data = {
         name: customer.name,
+        gender: GENDER_LABEL_MAP[customer.gender] ?? "",
         company: customer.company,
         email: customer.email,
         imageTag: avatarCid

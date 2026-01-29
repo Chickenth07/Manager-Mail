@@ -15,6 +15,12 @@ Customer.init("customers", {
     trim: true,
   },
 
+  gender: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+
   email: {
     type: String,
     required: true,

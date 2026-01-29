@@ -11,6 +11,7 @@ import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dropdown } from "primereact/dropdown";
 
 export default function Customers() {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -49,16 +50,23 @@ export default function Customers() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [errors, setErrors] = useState({});
 
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const genderOptions = [
+    { label: "Ông", value: "male" },
+    { label: "Bà", value: "female" },
+    { label: "Ông/Bà", value: "other" },
+  ];
+
   const [form, setForm] = useState({
-    name: "", 
+    name: "",
+    gender: "",
     company: "",
     email: "",
     phone: "",
   });
-
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   /* ================= GUARD LOGIN ================= */
   useEffect(() => {
@@ -105,7 +113,7 @@ export default function Customers() {
   /* ================= HANDLERS ================= */
   const openAdd = () => {
     setEditingCustomer(null);
-    setForm({ name: "", company: "", email: "", phone: "" });
+    setForm({ name: "", gender: "", company: "", email: "", phone: "" });
     setImageFile(null);
     setImagePreview(null);
     setErrors({});
@@ -116,26 +124,25 @@ export default function Customers() {
     setEditingCustomer(customer);
     setForm({
       name: customer.name || "",
+      gender: customer.gender || "",
       company: customer.company || "",
       email: customer.email || "",
       phone: customer.phone || "",
     });
     setImageFile(null);
-    setImagePreview(
-      customer.image ? `${BASE_URL}${customer.image}` : null
-    );
+    setImagePreview(customer.image ? `${BASE_URL}${customer.image}` : null);
     setErrors({});
     setVisible(true);
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-  
+
     try {
       setSaving(true);
-  
+
       let customerId;
-  
+
       if (editingCustomer) {
         await updateCustomer(editingCustomer._id, form);
         customerId = editingCustomer._id;
@@ -143,18 +150,18 @@ export default function Customers() {
         const created = await addCustomer(form);
         customerId = created._id;
       }
-  
+
       if (imageFile && customerId) {
         await uploadCustomerImage(customerId, imageFile);
       }
-  
+
       await fetchCustomers(1, rows);
       setVisible(false);
       setPage(1);
     } catch (err) {
       if (err?.field) {
         setErrors({ [err.field]: err.message });
-        return; 
+        return;
       }
       console.error(err);
     } finally {
@@ -213,6 +220,17 @@ export default function Customers() {
         />
 
         <Column field="name" header="Tên" />
+        <Column
+          header="Giới tính"
+          body={(row) => {
+            const map = {
+              male: "Ông",
+              female: "Bà",
+              other: "Ông/Bà",
+            };
+            return map[row.gender] || "";
+          }}
+        />
         <Column field="company" header="Công ty" />
         <Column field="email" header="Email" />
         <Column field="phone" header="Số điện thoại" />
@@ -282,6 +300,21 @@ export default function Customers() {
             />
             {errors.name && <small className="p-error">{errors.name}</small>}
           </div>
+
+          <Dropdown
+            value={form.gender}
+            options={genderOptions}
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Chọn giới tính"
+            className="w-full"
+            onChange={(e) =>
+              setForm({
+                ...form,
+                gender: e.value,
+              })
+            }
+          />
 
           <div className="field mb-3">
             <label>Công ty</label>
