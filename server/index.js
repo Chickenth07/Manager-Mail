@@ -10,6 +10,7 @@ import uploadRoute from "./routes/upload.route.js";
 import mailRoutes from "./routes/mail.route.js";
 import mailHistoryRoute from "./routes/mailHistory.route.js"
 import templateRouter from "./routes/mailTemplate.js"
+import folderRoute from "./modules/folder/folder.route.js";
 import path from "path";
 
 dotenv.config();
@@ -28,9 +29,14 @@ app.use("/api/customers", customerRoute);
 app.use("/api/mail", mailRoutes);
 app.use("/api/mail-history", mailHistoryRoute);
 app.use("/api", uploadRoute);
+app.use("/api/folders", folderRoute);
+// app.use(
+//   "/uploads",
+//   express.static(path.join(process.cwd(), "public/uploads"))
+// );
 app.use(
   "/uploads",
-  express.static(path.join(process.cwd(), "public/uploads"))
+  express.static(path.join(process.cwd(), "uploads"))
 );
 app.use("/api/templates", templateRouter);
 

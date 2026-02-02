@@ -52,6 +52,17 @@ export default function Sidebar({ collapsed }) {
           <i className="pi pi-bolt text-lg" />
           {!collapsed && "Mail Mẫu"}
         </NavLink>
+
+        <NavLink
+          to="/image-folders"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded
+            ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
+          }
+        >
+          <i className="pi pi-image text-lg" />
+          {!collapsed && "Thư Viện Ảnh"}
+        </NavLink>
         
         <NavLink
           to="/mail-history"

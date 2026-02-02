@@ -6,6 +6,7 @@ import SendMail from "../pages/SendMail.jsx";
 import MailHistory from "../pages/MailHistory.jsx";
 import TemplateList from "../pages/TemplateList.jsx";
 import AdminLayout from "../layouts/AdminLayout.jsx";
+import ImageFolders from "../pages/ImageFolders.jsx";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
       {
         path: "/send-mail",
         element: <SendMail />,
+      },
+      {
+        path: "/image-folders", 
+        element: <ImageFolders />,
       },
       {
         path: "/mail-history",
