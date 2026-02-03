@@ -2,10 +2,6 @@ import { FolderService } from "./folder.service.js";
 
 export const FolderController = {
   async create(req, res) {
-    console.log("===== CONTROLLER CREATE =====");
-    console.log("QUERY:", req.query);
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files?.length);
 
     const folderName = req.query.folderName;
 

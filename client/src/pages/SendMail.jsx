@@ -7,6 +7,7 @@ import Paginator from "../components/Paginator";
 
 import "ckeditor5/ckeditor5.css";
 import Editor from "../ckeditor/editor";
+import * as XLSX from "xlsx";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -16,7 +17,6 @@ import { Checkbox } from "primereact/checkbox";
 import { useLocation } from "react-router-dom";
 
 export default function SendMail() {
-  
   const API_URL = import.meta.env.VITE_API_URL;
 
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
@@ -24,6 +24,8 @@ export default function SendMail() {
   /* ================= PAGINATION (1-BASED) ================= */
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
+
+  const [excelRows, setExcelRows] = useState([]);
 
   const [externalEmails, setExternalEmails] = useState([]);
   const [externalInput, setExternalInput] = useState("");
@@ -141,10 +143,14 @@ export default function SendMail() {
 
   /* ================= COUNT ================= */
   const selectedCount = useMemo(() => {
+    if (excelRows.length > 0) {
+      return excelRows.length;
+    }
+
     const dbCount = sendToAll ? total - excludedIds.length : selectedIds.length;
 
     return dbCount + externalEmails.length;
-  }, [sendToAll, selectedIds, excludedIds, total, externalEmails]);
+  }, [excelRows, sendToAll, selectedIds, excludedIds, total, externalEmails]);
 
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
@@ -199,6 +205,29 @@ export default function SendMail() {
     });
   };
 
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const workbook = XLSX.read(evt.target.result, { type: "binary" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      const mappedRows = rawRows.map((r) => ({
+        email: r["$mail"] || "",
+        name: r["$name"] || "",
+        title: r["$title"] || "",
+        image: r["$image"] || "",
+      }));
+
+      setExcelRows(mappedRows);
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
   /* ================= SEND ================= */
   const handleSend = async () => {
     if (!subject || !content) {
@@ -206,15 +235,21 @@ export default function SendMail() {
       return;
     }
 
-    if (selectedCount === 0) {
-      alert("Vui lòng chọn ít nhất 1 khách hàng");
+    if (excelRows.length > 0 && externalEmails.length > 0) {
+      alert("Không thể dùng Excel cùng email nhập tay");
+      return;
+    }
+
+    if (excelRows.length === 0 && selectedCount === 0) {
+      alert("Vui lòng chọn ít nhất 1 người nhận");
       return;
     }
 
     const payload = {
       subject,
       content,
-      sendToAll,
+      excelRows,
+      sendToAll: false,
       customerIds: sendToAll ? [] : selectedIds,
       excludedIds: sendToAll ? excludedIds : [],
       externalEmails,
@@ -248,6 +283,7 @@ export default function SendMail() {
       setEditorImages([]);
       setSelectedIds([]);
       setExcludedIds([]);
+      setExcelRows([]);
       setSendToAll(false);
     } catch (err) {
       alert(err.message);
@@ -260,7 +296,6 @@ export default function SendMail() {
   return (
     <>
       <h2 className="text-xl font-semibold mb-4">Gửi email cho khách hàng</h2>
-
       {/* ===== FORM ===== */}
       <div className="mb-6 max-w-2xl">
         <div className="mb-4 max-w-2xl">
@@ -310,6 +345,14 @@ export default function SendMail() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block mb-2 font-medium">
+            Import danh sách từ Excel
+          </label>
+
+          <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} />
         </div>
 
         <div className="field mb-3">
@@ -448,7 +491,6 @@ export default function SendMail() {
           onClick={handleSend}
         />
       </div>
-
       {/* ===== SELECT ALL ===== */}
       <div className="mb-3 flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -456,6 +498,7 @@ export default function SendMail() {
             inputId="sendAll"
             checked={sendToAll}
             onChange={toggleSelectAllDB}
+            disabled={excelRows.length > 0}
           />
           <label htmlFor="sendAll" className="cursor-pointer">
             Gửi email cho tất cả khách hàng
@@ -474,43 +517,46 @@ export default function SendMail() {
           </span>
         )}
       </div>
-
       {/* ===== TABLE ===== */}
-      <DataTable
-        value={customers}
-        dataKey="_id"
-        loading={loading}
-        {...paginatorProps}
-        selection={selectedRows}
-        onSelectionChange={handleSelectionChange}
-        emptyMessage="Chưa có khách hàng"
-        showGridlines
-      >
-        <Column selectionMode="multiple" style={{ width: "3rem" }} />
+      {excelRows.length === 0 && (
+        <DataTable
+          value={customers}
+          dataKey="_id"
+          loading={loading}
+          {...paginatorProps}
+          selection={excelRows.length > 0 ? [] : selectedRows}
+          onSelectionChange={
+            excelRows.length > 0 ? undefined : handleSelectionChange
+          }
+          emptyMessage="Chưa có khách hàng"
+          showGridlines
+        >
+          <Column selectionMode="multiple" style={{ width: "3rem" }} />
 
-        <Column
-          header="STT"
-          body={(_, options) => {
-            if (rows === 5) {
-              return (page - 1) * (rows - 5) + options.rowIndex + 1;
-            }
-            if (rows === 10) {
-              return (page - 1) * (rows - 10) + options.rowIndex + 1;
-            }
-            if (rows === 20) {
-              return (page - 1) * (rows - 20) + options.rowIndex + 1;
-            } else {
-              return (page - 1) * (rows - 50) + options.rowIndex + 1;
-            }
-          }}
-          style={{ width: "80px", textAlign: "center" }}
-        />
+          <Column
+            header="STT"
+            body={(_, options) => {
+              if (rows === 5) {
+                return (page - 1) * (rows - 5) + options.rowIndex + 1;
+              }
+              if (rows === 10) {
+                return (page - 1) * (rows - 10) + options.rowIndex + 1;
+              }
+              if (rows === 20) {
+                return (page - 1) * (rows - 20) + options.rowIndex + 1;
+              } else {
+                return (page - 1) * (rows - 50) + options.rowIndex + 1;
+              }
+            }}
+            style={{ width: "80px", textAlign: "center" }}
+          />
 
-        <Column field="name" header="Tên" />
-        <Column field="company" header="Công ty" />
-        <Column field="email" header="Email" />
-        <Column field="phone" header="Số điện thoại" />
-      </DataTable>
+          <Column field="name" header="Tên" />
+          <Column field="company" header="Công ty" />
+          <Column field="email" header="Email" />
+          <Column field="phone" header="Số điện thoại" />
+        </DataTable>
+      )}
     </>
   );
 }

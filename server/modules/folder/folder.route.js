@@ -8,9 +8,6 @@ const router = express.Router();
 router.post(
   "/",
   (req, res, next) => {
-    console.log("===== BEFORE MULTER =====");
-    console.log("QUERY:", req.query);
-    console.log("HEADERS content-type:", req.headers["content-type"]);
     next();
   },
   uploadImages,

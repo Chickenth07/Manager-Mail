@@ -3,21 +3,24 @@ import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
 import { transporter } from "../utils/mailer.js";
+import { FolderModel } from "../modules/folder/folder.model.js";
 import Customer from "../models/Customer.js";
 import MailLog from "../models/MailLog.js";
 
 const router = express.Router();
 
+const HTML_KEYS = ["image"];
+
 const renderTemplate = (template, data) => {
-  // $name$ → in đậm
+  // $key$ → in đậm (text)
   template = template.replace(/\$(\w+)\$/g, (_, key) => {
-    if (key === "imageTag") return data[key] ?? "";
+    if (HTML_KEYS.includes(key)) return data[key] ?? "";
     return `<strong>${escapeHtml(data[key] ?? "")}</strong>`;
   });
 
-  // $name → thường
+  // $key → thường (text)
   template = template.replace(/\$(\w+)/g, (_, key) => {
-    if (key === "imageTag") return data[key] ?? "";
+    if (HTML_KEYS.includes(key)) return data[key] ?? "";
     return escapeHtml(data[key] ?? "");
   });
 
@@ -50,6 +53,7 @@ router.post("/send", async (req, res) => {
       subject,
       content,
       sendToAll,
+      excelRows = [],
       externalEmails = [],
       customerIds = [],
       excludedIds = [],
@@ -63,31 +67,57 @@ router.post("/send", async (req, res) => {
 
     const sendAll = sendToAll === true || sendToAll === "true";
 
-    const customerEmails = customers.map((c) => c.email.toLowerCase());
-
-    const externalOnlyEmails = externalEmails
-      .map((e) => e.toLowerCase())
-      .filter((e) => !customerEmails.includes(e));
-
-
-    /* ================= GET CUSTOMERS ================= */
-    if (sendAll) {
-      customers = await Customer.find({
-        where: {
-          _id: { $nin: excludedIds },
-          email: { $ne: "" },
-        },
-        attr: "name gender company email image",
-      });
-    } else {
-      const ids = Array.isArray(customerIds) ? customerIds : [customerIds];
-      const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-      customers = await Customer.find({
-        where: { _id: { $in: validIds }, email: { $ne: "" } },
-        attr: "name gender company email image",
+    if (excelRows.length > 0 && sendAll) {
+      return res.status(400).json({
+        message: "Không thể gửi Excel và gửi toàn bộ khách hàng cùng lúc",
       });
     }
+
+    /* ================= GET CUSTOMERS ================= */
+    if (Array.isArray(excelRows) && excelRows.length > 0) {
+      customers = excelRows
+        .filter((r) => typeof r.email === "string" && r.email.includes("@"))
+        .map((r, index) => ({
+          _id: `excel-${index}`,
+          name: r.name || "",
+          gender: r.gender || "",
+          company: r.company || "",
+          title: r.title || "",
+          email: r.email,
+          image: r.image || "",
+          __fromExcel: true,
+        }));
+    } else {
+      if (sendAll) {
+        customers = await Customer.find({
+          where: {
+            _id: { $nin: excludedIds },
+            email: { $ne: "" },
+          },
+          attr: "name gender company email image",
+        });
+      } else {
+        const ids = Array.isArray(customerIds) ? customerIds : [customerIds];
+        const validIds = ids.filter((id) =>
+          mongoose.Types.ObjectId.isValid(id)
+        );
+
+        customers = await Customer.find({
+          where: { _id: { $in: validIds }, email: { $ne: "" } },
+          attr: "name gender company email image",
+        });
+      }
+    }
+
+    const customerEmails = customers
+      .map((c) => c.email)
+      .filter(Boolean)
+      .map((e) => e.toLowerCase());
+
+    const externalOnlyEmails = externalEmails
+      .filter(Boolean)
+      .map((e) => e.toLowerCase())
+      .filter((e) => !customerEmails.includes(e));
 
     /* ================= EMAIL LIST ================= */
     emails = customers.map((c) => c.email);
@@ -133,94 +163,68 @@ router.post("/send", async (req, res) => {
     /* ================= SEND MAIL (ONE BY ONE) ================= */
     let successCount = 0;
 
-    const needAvatar =
-      finalHtml.includes("$imageTag") || finalHtml.includes("cid:avatar-");
-
     for (const customer of customers) {
       const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
 
-      /* ===== AVATAR CUSTOMER (CID) ===== */
-      let avatarCid = null;
+      /* ===== RESOLVE IMAGE BY KEY ($image) ===== */
+      let imageHtml = "";
+      let imagePath = null;
 
-      console.log("Customer image field:", customer.image);
+      if (customer.image) {
+        const imgKey = customer.image.trim();
 
-      // if (customer.image) {
-      //   const relativePath = customer.image.replace(/^\/+/, "");
+        const folderDoc = await FolderModel.findOne({
+          deletedAt: null,
+          "images.key": imgKey,
+        });
 
-      //   const filePath = path.join(process.cwd(), "public", relativePath);
+        if (folderDoc) {
+          const img = folderDoc.images.find((i) => i.key === imgKey);
 
-      //   console.log("Resolved filePath:", filePath);
-      //   console.log("File exists:", fs.existsSync(filePath));
-
-      //   if (fs.existsSync(filePath)) {
-      //     avatarCid = `avatar-${customer._id}@mail`;
-
-      //     perMailAttachments.push({
-      //       filename: path.basename(filePath),
-      //       path: filePath,
-      //       cid: avatarCid,
-      //       contentDisposition: "inline",
-      //     });
-      //   }
-      // }
-
-      if (needAvatar && customer.image) {
-        const relativePath = customer.image.replace(/^\/+/, "");
-        const filePath = path.join(process.cwd(), "public", relativePath);
-
-        if (fs.existsSync(filePath)) {
-          avatarCid = `avatar-${customer._id}@mail`;
-
-          perMailAttachments.push({
-            filename: path.basename(filePath),
-            path: filePath,
-            cid: avatarCid,
-            contentDisposition: "inline",
-          });
+          if (img?.path) {
+            imagePath = path.join(process.cwd(), img.path);
+          }
         }
       }
 
-      // const data = {
-      //   name: customer.name,
-      //   email: customer.email,
+      /* ===== ATTACH CID ===== */
+      if (imagePath && fs.existsSync(imagePath)) {
+        const cid = `image-${customer._id}@mail`;
 
-      //   // HTML IMG – CHỈ CID
-      //   imageTag: `
-      //     <img
-      //       src="cid:${avatarCid}"
-      //       alt="${customer.name}"
-      //       width="600"
-      //       style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
-      //     />
-      //   `,
-      // };
+        perMailAttachments.push({
+          filename: path.basename(imagePath),
+          path: imagePath,
+          cid,
+          contentDisposition: "inline",
+        });
+
+        imageHtml = `
+          <img
+            src="cid:${cid}"
+            alt=""
+            style="
+              height:600px;
+              width:auto;
+              max-width:100%;
+              display:block;
+              margin:16px auto;
+              object-fit:contain;
+            "
+          />
+        `;
+      }
 
       const data = {
         name: customer.name,
         gender: GENDER_LABEL_MAP[customer.gender] ?? "",
         company: customer.company,
+        title: customer.title,
         email: customer.email,
-        imageTag: avatarCid
-          ? `
-            <img
-              src="cid:${avatarCid}"
-              alt="${customer.name}"
-              width="640"
-              style="width:640px; max-width:100%; height:auto; display:block; margin:0 auto;"
-            />
-          `
-          : "",
+        image: imageHtml,
       };
 
       const personalizedSubject = renderTemplate(subject, data);
       const personalizedHtml = renderTemplate(finalHtml, data);
-
-      console.log("HTML AFTER RENDER:", personalizedHtml);
-      console.log("CID:", avatarCid);
-      console.log(
-        "Attachments:",
-        perMailAttachments.map((a) => a.cid)
-      );
 
       await transporter.sendMail({
         from: `"S-Tech" <${process.env.MAIL_USER}>`,
@@ -237,10 +241,10 @@ router.post("/send", async (req, res) => {
         from: `"S-Tech" <${process.env.MAIL_USER}>`,
         to: email,
         subject,
-        html: finalHtml.replace(/\$imageTag/g, ""),
+        html: finalHtml.replace(/\$image/g, ""),
         attachments: mailAttachments,
       });
-    
+
       successCount++;
     }
 
