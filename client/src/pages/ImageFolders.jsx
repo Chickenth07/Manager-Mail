@@ -65,8 +65,6 @@ export default function ImageFolders() {
       );
       const data = await res.json();
 
-      console.log("FETCH RESULT:", data);
-
       const items = Array.isArray(data?.items)
         ? data.items
         : Array.isArray(data?.data)
@@ -78,7 +76,6 @@ export default function ImageFolders() {
       setFolders(items);
       setTotal(data?.total ?? items.length);
     } catch (err) {
-      console.error(err);
       alert("Không thể tải danh sách folder");
       setFolders([]); // 🔒 đảm bảo DataTable không crash
     } finally {

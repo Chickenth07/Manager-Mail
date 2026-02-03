@@ -7,6 +7,11 @@ import { FolderModel } from "../modules/folder/folder.model.js";
 import Customer from "../models/Customer.js";
 import MailLog from "../models/MailLog.js";
 
+import {
+  unwrapImageParagraph,
+  normalizeImageForEmail,
+} from "../utils/emailHtmlCleaner.js";
+
 const router = express.Router();
 
 const HTML_KEYS = ["image"];
@@ -147,6 +152,9 @@ router.post("/send", async (req, res) => {
 
     let finalHtml = content;
 
+    finalHtml = unwrapImageParagraph(finalHtml);
+    finalHtml = normalizeImageForEmail(finalHtml);
+
     editorImages.forEach((img, index) => {
       const cid = `editor-${index}@mail`;
 
@@ -199,19 +207,26 @@ router.post("/send", async (req, res) => {
         });
 
         imageHtml = `
-          <img
-            src="cid:${cid}"
-            alt=""
-            style="
-              height:600px;
-              width:auto;
-              max-width:100%;
-              display:block;
-              margin:16px auto;
-              object-fit:contain;
-            "
-          />
-        `;
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td align="center" style="padding:0; line-height:0; font-size:0;">
+                <img
+                  src="cid:${cid}"
+                  alt=""
+                  style="
+                    display:block;
+                    max-width:100%;
+                    height:600px;
+                    width:auto;
+                    border:0;
+                    outline:none;
+                    text-decoration:none;
+                  "
+                />
+              </td>
+            </tr>
+          </table>
+          `;
       }
 
       const data = {
@@ -226,11 +241,16 @@ router.post("/send", async (req, res) => {
       const personalizedSubject = renderTemplate(subject, data);
       const personalizedHtml = renderTemplate(finalHtml, data);
 
+      const cleanedHtml = personalizedHtml.replace(
+        /<p[^>]*>(?:\s|&nbsp;|<span[^>]*>(?:\s|&nbsp;)*<\/span>)*<\/p>/gi,
+        ""
+      );
+
       await transporter.sendMail({
         from: `"S-Tech" <${process.env.MAIL_USER}>`,
         to: customer.email,
         subject: personalizedSubject,
-        html: personalizedHtml,
+        html: cleanedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
         attachments: perMailAttachments,
       });
       successCount++;
