@@ -7,11 +7,6 @@ import { FolderModel } from "../modules/folder/folder.model.js";
 import Customer from "../models/Customer.js";
 import MailLog from "../models/MailLog.js";
 
-import {
-  unwrapImageParagraph,
-  normalizeImageForEmail,
-} from "../utils/emailHtmlCleaner.js";
-
 const router = express.Router();
 
 const HTML_KEYS = ["image"];
@@ -152,9 +147,6 @@ router.post("/send", async (req, res) => {
 
     let finalHtml = content;
 
-    finalHtml = unwrapImageParagraph(finalHtml);
-    finalHtml = normalizeImageForEmail(finalHtml);
-
     editorImages.forEach((img, index) => {
       const cid = `editor-${index}@mail`;
 
@@ -241,16 +233,11 @@ router.post("/send", async (req, res) => {
       const personalizedSubject = renderTemplate(subject, data);
       const personalizedHtml = renderTemplate(finalHtml, data);
 
-      const cleanedHtml = personalizedHtml.replace(
-        /<p[^>]*>(?:\s|&nbsp;|<span[^>]*>(?:\s|&nbsp;)*<\/span>)*<\/p>/gi,
-        ""
-      );
-
       await transporter.sendMail({
         from: `"S-Tech" <${process.env.MAIL_USER}>`,
         to: customer.email,
         subject: personalizedSubject,
-        html: cleanedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
+        html: personalizedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
         attachments: perMailAttachments,
       });
       successCount++;
