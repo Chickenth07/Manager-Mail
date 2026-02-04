@@ -27,18 +27,8 @@ export default function SendMail() {
 
   const [excelRows, setExcelRows] = useState([]);
 
-  const [externalEmails, setExternalEmails] = useState([]);
-  const [externalInput, setExternalInput] = useState("");
-
   const location = useLocation();
   const templateData = location.state;
-
-  const splitEmails = (input = "") => {
-    return input
-      .split(/[\s,;]+/)
-      .map((e) => e.trim())
-      .filter(Boolean);
-  };
 
   const plainTextToHtml = (text = "") => text.replace(/\n/g, "<br />");
 
@@ -76,37 +66,6 @@ export default function SendMail() {
       setContent(plainTextToHtml(templateData.html || ""));
     }
   }, [templateData]);
-
-  //=======Validate=======//
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  const addExternalEmail = () => {
-    const emails = splitEmails(externalInput);
-
-    if (emails.length === 0) return;
-
-    const validEmails = [];
-    const invalidEmails = [];
-
-    emails.forEach((email) => {
-      if (isValidEmail(email)) {
-        validEmails.push(email);
-      } else {
-        invalidEmails.push(email);
-      }
-    });
-
-    if (invalidEmails.length > 0) {
-      alert(`Email không hợp lệ:\n${invalidEmails.join("\n")}`);
-    }
-
-    setExternalEmails((prev) => {
-      const merged = [...prev, ...validEmails];
-      return Array.from(new Set(merged)); // loại trùng
-    });
-
-    setExternalInput("");
-  };
 
   /* ================= MAP IDS -> ROWS ================= */
   const selectedRows = useMemo(() => {
@@ -149,8 +108,8 @@ export default function SendMail() {
 
     const dbCount = sendToAll ? total - excludedIds.length : selectedIds.length;
 
-    return dbCount + externalEmails.length;
-  }, [excelRows, sendToAll, selectedIds, excludedIds, total, externalEmails]);
+    return dbCount;
+  }, [excelRows, sendToAll, selectedIds, excludedIds, total]);
 
   /* ================= TOGGLE SELECT ALL (DB) ================= */
   const toggleSelectAllDB = () => {
@@ -235,11 +194,6 @@ export default function SendMail() {
       return;
     }
 
-    if (excelRows.length > 0 && externalEmails.length > 0) {
-      alert("Không thể dùng Excel cùng email nhập tay");
-      return;
-    }
-
     if (excelRows.length === 0 && selectedCount === 0) {
       alert("Vui lòng chọn ít nhất 1 người nhận");
       return;
@@ -249,15 +203,12 @@ export default function SendMail() {
       subject,
       content,
       excelRows,
-      sendToAll: false,
+      sendToAll,
       customerIds: sendToAll ? [] : selectedIds,
       excludedIds: sendToAll ? excludedIds : [],
-      externalEmails,
       editorImages,
       attachments,
     };
-
-    console.log("📢 Count:", selectedCount);
 
     try {
       setSending(true);
@@ -285,6 +236,7 @@ export default function SendMail() {
       setExcludedIds([]);
       setExcelRows([]);
       setSendToAll(false);
+      setPage(1);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -298,54 +250,6 @@ export default function SendMail() {
       <h2 className="text-xl font-semibold mb-4">Gửi email cho khách hàng</h2>
       {/* ===== FORM ===== */}
       <div className="mb-6 max-w-2xl">
-        <div className="mb-4 max-w-2xl">
-          <label className="block mb-2 font-medium">
-            Gửi thêm cho email bên ngoài
-          </label>
-
-          <div className="flex gap-2">
-            <InputText
-              placeholder="Nhập email (cách nhau bằng , ; hoặc Enter)"
-              value={externalInput}
-              onChange={(e) => setExternalInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addExternalEmail();
-                }
-              }}
-              onPaste={(e) => {
-                e.preventDefault();
-                const pasted = e.clipboardData.getData("text");
-                setExternalInput(pasted);
-                setTimeout(addExternalEmail, 0);
-              }}
-              className="flex-1"
-            />
-            <Button label="Thêm" icon="pi pi-plus" onClick={addExternalEmail} />
-          </div>
-
-          {externalEmails.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {externalEmails.map((email, idx) => (
-                <div
-                  key={idx}
-                  className="p-tag p-tag-secondary flex items-center gap-2"
-                >
-                  <span>{email}</span>
-                  <i
-                    className="pi pi-times cursor-pointer"
-                    onClick={() =>
-                      setExternalEmails((prev) =>
-                        prev.filter((_, i) => i !== idx)
-                      )
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div className="mb-4">
           <label className="block mb-2 font-medium">
