@@ -7,6 +7,8 @@ import { FolderModel } from "../modules/folder/folder.model.js";
 import Customer from "../models/Customer.js";
 import MailLog from "../models/MailLog.js";
 
+import { createMailLog, updateMailLog } from "../services/mail.service.js";
+
 const router = express.Router();
 
 const HTML_KEYS = ["image"];
@@ -45,8 +47,13 @@ const escapeHtml = (text) => {
 
 /* ================= SEND MAIL ================= */
 router.post("/send", async (req, res) => {
+
+  console.log("\n================ SEND MAIL HIT ================");
+  console.log("📦 BODY KEYS:", Object.keys(req.body || {}));
+
   let customers = [];
   let emails = [];
+  let mailLog = null;
 
   try {
     const {
@@ -60,6 +67,12 @@ router.post("/send", async (req, res) => {
       editorImages = [],
       attachments = [],
     } = req.body;
+
+    console.log("✉️ subject:", subject);
+    console.log("📝 content length:", content?.length);
+    console.log("📊 excelRows:", excelRows.length);
+    console.log("📎 attachments:", attachments.length);
+    console.log("🖼 editorImages:", editorImages.length);
 
     if (!subject || !content) {
       return res.status(400).json({ message: "Thiếu subject hoặc content" });
@@ -109,6 +122,10 @@ router.post("/send", async (req, res) => {
       }
     }
 
+    console.log("👥 customers count:", customers.length);
+    console.log("👤 sample customer:", customers[0]);
+
+
     const customerEmails = customers
       .map((c) => c.email)
       .filter(Boolean)
@@ -120,7 +137,7 @@ router.post("/send", async (req, res) => {
       .filter((e) => !customerEmails.includes(e));
 
     /* ================= EMAIL LIST ================= */
-    emails = customers.map((c) => c.email);
+    emails = customers.map(c => c.email).filter(Boolean);
 
     if (Array.isArray(externalEmails)) {
       emails.push(...externalEmails.filter(Boolean));
@@ -128,142 +145,181 @@ router.post("/send", async (req, res) => {
 
     emails = [...new Set(emails.map((e) => e.toLowerCase()))];
 
+    console.log("📨 FINAL EMAIL COUNT:", emails.length);
+
     if (!emails.length) {
       return res.status(400).json({ message: "Không có email hợp lệ" });
     }
+
+    let finalHtml = content;
+
+    mailLog = await createMailLog({
+      subject,
+      content: finalHtml,
+      recipients: emails,
+    });
+
+    console.log("🧾 MailLog created:", mailLog?._id);
 
     /* ================= ATTACHMENTS ================= */
     const mailAttachments = [];
 
     attachments.forEach((file) => {
-      if (file.base64 && file.filename) {
+      if (typeof file?.base64 === "string" && file.filename) {
+        const base64 = file.base64.includes(",")
+          ? file.base64.split(",")[1]
+          : file.base64;
+    
         mailAttachments.push({
           filename: file.filename,
-          content: file.base64.split(",")[1] || file.base64,
+          content: base64,
           encoding: "base64",
         });
       }
     });
 
-    let finalHtml = content;
-
     editorImages.forEach((img, index) => {
-      const cid = `editor-${index}@mail`;
+      console.log(`🖼 editorImage[${i}]`, {
+        filename: img?.filename,
+        hasBase64: !!img?.base64,
+        base64Length: img?.base64?.length,
+      });
 
+      if (!img?.base64) return;
+    
+      const cid = `editor-${index}@mail`;
+    
       mailAttachments.push({
         filename: img.filename || `editor-${index}.png`,
         content: img.base64.split(",")[1],
         encoding: "base64",
         cid,
       });
-
+    
       finalHtml = finalHtml.replace(img.base64, `cid:${cid}`);
     });
 
     /* ================= SEND MAIL (ONE BY ONE) ================= */
     let successCount = 0;
+    let failCount = 0;
 
     for (const customer of customers) {
-      const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
 
-      /* ===== RESOLVE IMAGE BY KEY ($image) ===== */
-      let imageHtml = "";
-      let imagePath = null;
+      console.log("📤 Sending to:", customer.email);
 
-      if (customer.image) {
-        const imgKey = customer.image.trim();
+      try {
+        const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
 
-        const folderDoc = await FolderModel.findOne({
-          deletedAt: null,
-          "images.key": imgKey,
-        });
+        /* ===== RESOLVE IMAGE BY KEY ($image) ===== */
+        let imageHtml = "";
+        let imagePath = null;
 
-        if (folderDoc) {
-          const img = folderDoc.images.find((i) => i.key === imgKey);
+        if (customer.image) {
+          const imgKey = customer.image.trim();
 
-          if (img?.path) {
-            imagePath = path.join(process.cwd(), img.path);
+          const folderDoc = await FolderModel.findOne({
+            deletedAt: null,
+            "images.key": imgKey,
+          });
+
+          if (folderDoc) {
+            const img = folderDoc.images.find((i) => i.key === imgKey);
+
+            if (img?.path) {
+              imagePath = path.join(process.cwd(), img.path);
+            }
           }
         }
-      }
 
-      /* ===== ATTACH CID ===== */
-      if (imagePath && fs.existsSync(imagePath)) {
-        const cid = `image-${customer._id}@mail`;
+        /* ===== ATTACH CID ===== */
+        if (imagePath && fs.existsSync(imagePath)) {
+          const cid = `image-${customer._id}@mail`;
 
-        perMailAttachments.push({
-          filename: path.basename(imagePath),
-          path: imagePath,
-          cid,
-          contentDisposition: "inline",
+          perMailAttachments.push({
+            filename: path.basename(imagePath),
+            path: imagePath,
+            cid,
+            contentDisposition: "inline",
+          });
+
+          imageHtml = `
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding:0; line-height:0; font-size:0;">
+                    <img
+                      src="cid:${cid}"
+                      alt=""
+                      style="
+                        display:block;
+                        max-width:100%;
+                        height:600px;
+                        width:auto;
+                        border:0;
+                        outline:none;
+                        text-decoration:none;
+                      "
+                    />
+                  </td>
+                </tr>
+              </table>
+              `;
+        }
+
+        const data = {
+          name: customer.name,
+          gender: GENDER_LABEL_MAP[customer.gender] ?? "",
+          company: customer.company,
+          title: customer.title,
+          email: customer.email,
+          image: imageHtml,
+        };
+
+        const personalizedSubject = renderTemplate(subject, data);
+        const personalizedHtml = renderTemplate(finalHtml, data);
+
+        await transporter.sendMail({
+          from: `"S-Tech" <${process.env.MAIL_USER}>`,
+          to: customer.email,
+          subject: personalizedSubject,
+          html: personalizedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
+          attachments: perMailAttachments,
         });
-
-        imageHtml = `
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td align="center" style="padding:0; line-height:0; font-size:0;">
-                <img
-                  src="cid:${cid}"
-                  alt=""
-                  style="
-                    display:block;
-                    max-width:100%;
-                    height:600px;
-                    width:auto;
-                    border:0;
-                    outline:none;
-                    text-decoration:none;
-                  "
-                />
-              </td>
-            </tr>
-          </table>
-          `;
+        successCount++;
+      } catch (error) {
+        failCount++;
       }
-
-      const data = {
-        name: customer.name,
-        gender: GENDER_LABEL_MAP[customer.gender] ?? "",
-        company: customer.company,
-        title: customer.title,
-        email: customer.email,
-        image: imageHtml,
-      };
-
-      const personalizedSubject = renderTemplate(subject, data);
-      const personalizedHtml = renderTemplate(finalHtml, data);
-
-      await transporter.sendMail({
-        from: `"S-Tech" <${process.env.MAIL_USER}>`,
-        to: customer.email,
-        subject: personalizedSubject,
-        html: personalizedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
-        attachments: perMailAttachments,
+      await updateMailLog(mailLog._id, {
+        successCount,
+        failCount,
       });
-      successCount++;
     }
+
+    await updateMailLog(mailLog._id, {
+      successCount,
+      failCount,
+      status:
+        successCount === 0 ? "failed" : failCount > 0 ? "partial" : "success",
+    });
 
     for (const email of externalOnlyEmails) {
-      await transporter.sendMail({
-        from: `"S-Tech" <${process.env.MAIL_USER}>`,
-        to: email,
-        subject,
-        html: finalHtml.replace(/\$image/g, ""),
-        attachments: mailAttachments,
+      try {
+        await transporter.sendMail({
+          from: `"S-Tech" <${process.env.MAIL_USER}>`,
+          to: email,
+          subject,
+          html: finalHtml.replace(/\$image/g, ""),
+          attachments: mailAttachments,
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+
+      await updateMailLog(mailLog._id, {
+        successCount,
+        failCount,
       });
-
-      successCount++;
     }
-
-    /* ================= LOG ================= */
-    await MailLog.create({
-      subject,
-      content: finalHtml,
-      recipients: emails,
-      successCount,
-      failCount: 0,
-      status: "success",
-    });
 
     res.json({
       success: true,
@@ -271,16 +327,18 @@ router.post("/send", async (req, res) => {
       message: `Đã gửi ${successCount} email`,
     });
   } catch (err) {
-    console.error("SEND MAIL ERROR:", err);
 
-    await MailLog.create({
-      subject: req.body?.subject,
-      content: req.body?.content,
-      recipients: emails,
-      successCount: 0,
-      failCount: emails.length,
-      status: "failed",
+    console.error("🔥 FATAL SEND ERROR:", {
+      message: err.message,
+      stack: err.stack,
     });
+
+    if (mailLog?._id) {
+      await updateMailLog(mailLog._id, {
+        status: "failed",
+        failCount: emails.length,
+      });
+    }
 
     res.status(500).json({
       success: false,

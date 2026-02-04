@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
+import { io } from "socket.io-client";
+
 import MailFailDialog from "../components/MailFailDialog";
 import Paginator from "../components/Paginator";
 
 export default function MailHistory() {
   const API_URL = import.meta.env.VITE_API_URL;
+  const BASE_URL = import.meta.env.VITE_BASE_URL;
 
   const [mails, setMails] = useState([]);
   const [selectedMailId, setSelectedMailId] = useState(null);
@@ -15,6 +18,8 @@ export default function MailHistory() {
   const [rows, setRows] = useState(5);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const socketRef = useRef(null);
 
   const paginatorProps = Paginator({
     page,
@@ -25,6 +30,29 @@ export default function MailHistory() {
       setRows(rows);
     },
   });
+
+  useEffect(() => {
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"],
+      autoConnect: true,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("🟢 socket connected:", socket.id);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("🔴 socket disconnected:", reason);
+    });
+
+    return () => {
+      if (socket.connected) {
+        socket.disconnect(); // ✅ chỉ disconnect khi đã connect
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchMailHistory(page, rows);
@@ -58,7 +86,7 @@ export default function MailHistory() {
         loading={loading}
         {...paginatorProps}
         emptyMessage="Chưa có lịch sử gửi mail"
-        showGridlines 
+        showGridlines
       >
         <Column
           header="STT"

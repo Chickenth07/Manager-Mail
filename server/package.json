@@ -22,6 +22,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12",
     "react-hook-form": "^7.70.0",
+    "socket.io": "^4.8.3",
     "yup": "^1.7.1",
     "zustand": "^5.0.9"
   },

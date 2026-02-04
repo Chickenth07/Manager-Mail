@@ -29,8 +29,8 @@ const MailLogSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["success", "partial", "failed"],
-      required: true,
+      enum: ["processing", "success", "failed", "partial"],
+      default: "processing",
     },
 
     failures: [
