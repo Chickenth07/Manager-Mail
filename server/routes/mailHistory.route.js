@@ -10,7 +10,7 @@ router.get("/", async (req, res) => {
     const limit = Number(req.query.limit) || 5;
     const skip = (page - 1) * limit;
 
-    const [items, total] = await Promise.all([
+    const [rawItems, total] = await Promise.all([
       MailLog.find()
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -18,6 +18,33 @@ router.get("/", async (req, res) => {
         .lean(),
       MailLog.countDocuments(),
     ]);
+
+    const items = rawItems.map((mail) => {
+      const totalCount = mail.recipients.length;
+      const successCount = mail.successCount || 0;
+      const failCount = mail.failCount || 0;
+
+      const sendingCount = Math.max(
+        totalCount - successCount - failCount,
+        0
+      );
+
+      // chuẩn hoá status theo dữ liệu thực
+      let status = "processing";
+
+      if (sendingCount === 0) {
+        if (failCount === 0) status = "success";
+        else if (successCount === 0) status = "failed";
+        else status = "partial";
+      }
+
+      return {
+        ...mail,
+        totalCount,
+        sendingCount,
+        status,
+      };
+    });
 
     res.json({ items, total });
   } catch (err) {

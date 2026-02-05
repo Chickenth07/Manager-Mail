@@ -32,7 +32,7 @@ export default function MailHistory() {
   });
 
   useEffect(() => {
-    const socket = io("http://localhost:3000", {
+    const socket = io(BASE_URL, {
       transports: ["websocket"],
       autoConnect: true,
     });
@@ -47,9 +47,27 @@ export default function MailHistory() {
       console.log("🔴 socket disconnected:", reason);
     });
 
+    socket.on("mail:progress", (payload) => {
+      const { mailLogId, successCount, failCount, status } = payload;
+
+      setMails((prev) =>
+        prev.map((mail) =>
+          mail._id === mailLogId
+            ? {
+                ...mail,
+                successCount,
+                failCount,
+                sendingCount: mail.recipients.length - successCount - failCount,
+                status,
+              }
+            : mail
+        )
+      );
+    });
+
     return () => {
       if (socket.connected) {
-        socket.disconnect(); // ✅ chỉ disconnect khi đã connect
+        socket.disconnect();
       }
     };
   }, []);
@@ -74,6 +92,27 @@ export default function MailHistory() {
       alert("Không thể tải lịch sử gửi mail");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const renderStatus = (row) => {
+    switch (row.status) {
+      case "processing":
+        return <Button label="Đang gửi" severity="warning" size="small" />;
+
+      case "success":
+        return <Button label="Thành công" severity="success" size="small" />;
+
+      case "partial":
+        return (
+          <Button label="Một phần" severity="warning" size="small" outlined />
+        );
+
+      case "failed":
+        return <Button label="Thất bại" severity="danger" size="small" />;
+
+      default:
+        return row.status;
     }
   };
 
@@ -108,7 +147,35 @@ export default function MailHistory() {
 
         <Column field="subject" header="Tiêu đề" />
 
-        <Column field="successCount" header="Thành công" />
+        <Column
+          header="Thành công"
+          body={(row) => (
+            <Button
+              label={row.successCount}
+              severity="success"
+              size="small"
+              text
+            />
+          )}
+          style={{ textAlign: "center", width: "120px" }}
+        />
+
+        <Column
+          header="Đang gửi"
+          body={(row) =>
+            row.sendingCount > 0 ? (
+              <Button
+                label={row.sendingCount}
+                severity="warning"
+                size="small"
+                text
+              />
+            ) : (
+              0
+            )
+          }
+          style={{ textAlign: "center", width: "120px" }}
+        />
 
         <Column
           header="Thất bại"
@@ -124,9 +191,14 @@ export default function MailHistory() {
               0
             )
           }
+          style={{ textAlign: "center", width: "120px" }}
         />
 
-        <Column field="status" header="Trạng thái" />
+        <Column
+          header="Trạng thái"
+          body={renderStatus}
+          style={{ textAlign: "center", width: "140px" }}
+        />
 
         <Column
           header="Thời điểm gửi"
