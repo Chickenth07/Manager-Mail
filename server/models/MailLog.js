@@ -33,10 +33,11 @@ const MailLogSchema = new mongoose.Schema(
       default: "processing",
     },
 
-    failures: [
+    failDetails: [
       {
         email: String,
-        error: String,
+        reason: String,
+        at: { type: Date, default: Date.now },
       },
     ],
   },

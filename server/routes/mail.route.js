@@ -2,12 +2,14 @@ import express from "express";
 import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
+
+import { hasMxRecord } from "../utils/emailMxCheck.js";
 import { transporter } from "../utils/mailer.js";
 import { FolderModel } from "../modules/folder/folder.model.js";
-import Customer from "../models/Customer.js";
-import MailLog from "../models/MailLog.js";
-
+import { classifyMailError } from "../utils/mailErrorClassifier.js";
 import { createMailLog, updateMailLog } from "../services/mail.service.js";
+
+import Customer from "../models/Customer.js";
 
 const router = express.Router();
 
@@ -45,11 +47,15 @@ const escapeHtml = (text) => {
     .replace(/'/g, "&#039;");
 };
 
+const calcStatus = (success, fail, total) => {
+  if (success === total) return "success";
+  if (fail === total) return "failed";
+  if (success + fail === total) return "partial";
+  return "processing";
+};
+
 /* ================= SEND MAIL ================= */
 router.post("/send", async (req, res) => {
-
-  console.log("\n================ SEND MAIL HIT ================");
-  console.log("📦 BODY KEYS:", Object.keys(req.body || {}));
 
   let customers = [];
   let emails = [];
@@ -67,12 +73,6 @@ router.post("/send", async (req, res) => {
       editorImages = [],
       attachments = [],
     } = req.body;
-
-    console.log("✉️ subject:", subject);
-    console.log("📝 content length:", content?.length);
-    console.log("📊 excelRows:", excelRows.length);
-    console.log("📎 attachments:", attachments.length);
-    console.log("🖼 editorImages:", editorImages.length);
 
     if (!subject || !content) {
       return res.status(400).json({ message: "Thiếu subject hoặc content" });
@@ -122,10 +122,6 @@ router.post("/send", async (req, res) => {
       }
     }
 
-    console.log("👥 customers count:", customers.length);
-    console.log("👤 sample customer:", customers[0]);
-
-
     const customerEmails = customers
       .map((c) => c.email)
       .filter(Boolean)
@@ -136,8 +132,11 @@ router.post("/send", async (req, res) => {
       .map((e) => e.toLowerCase())
       .filter((e) => !customerEmails.includes(e));
 
+    const totalCustomers = customers.length;
+    const totalAll = customers.length + externalOnlyEmails.length;
+
     /* ================= EMAIL LIST ================= */
-    emails = customers.map(c => c.email).filter(Boolean);
+    emails = customers.map((c) => c.email).filter(Boolean);
 
     if (Array.isArray(externalEmails)) {
       emails.push(...externalEmails.filter(Boolean));
@@ -159,8 +158,6 @@ router.post("/send", async (req, res) => {
       recipients: emails,
     });
 
-    console.log("🧾 MailLog created:", mailLog?._id);
-
     /* ================= ATTACHMENTS ================= */
     const mailAttachments = [];
 
@@ -169,7 +166,7 @@ router.post("/send", async (req, res) => {
         const base64 = file.base64.includes(",")
           ? file.base64.split(",")[1]
           : file.base64;
-    
+
         mailAttachments.push({
           filename: file.filename,
           content: base64,
@@ -179,23 +176,23 @@ router.post("/send", async (req, res) => {
     });
 
     editorImages.forEach((img, index) => {
-      console.log(`🖼 editorImage[${i}]`, {
+      console.log(`🖼 editorImage[${index}]`, {
         filename: img?.filename,
         hasBase64: !!img?.base64,
         base64Length: img?.base64?.length,
       });
 
       if (!img?.base64) return;
-    
+
       const cid = `editor-${index}@mail`;
-    
+
       mailAttachments.push({
         filename: img.filename || `editor-${index}.png`,
         content: img.base64.split(",")[1],
         encoding: "base64",
         cid,
       });
-    
+
       finalHtml = finalHtml.replace(img.base64, `cid:${cid}`);
     });
 
@@ -205,7 +202,30 @@ router.post("/send", async (req, res) => {
 
     for (const customer of customers) {
 
-      console.log("📤 Sending to:", customer.email);
+      const validMx = await hasMxRecord(customer.email);
+
+      if (!validMx) {
+        console.log("❌ INVALID DOMAIN:", customer.email);
+
+        failCount++;
+
+        await updateMailLog(mailLog._id, {
+          $push: {
+            failDetails: {
+              email: customer.email,
+              reason: "Domain email không tồn tại",
+            },
+          },
+        });
+
+        await updateMailLog(mailLog._id, {
+          successCount,
+          failCount,
+          status: calcStatus(successCount, failCount, totalCustomers),
+        });
+
+        continue; 
+      }
 
       try {
         const perMailAttachments = mailAttachments.map((a) => ({ ...a }));
@@ -277,31 +297,56 @@ router.post("/send", async (req, res) => {
         const personalizedSubject = renderTemplate(subject, data);
         const personalizedHtml = renderTemplate(finalHtml, data);
 
-        await transporter.sendMail({
+        const info = await transporter.sendMail({
           from: `"S-Tech" <${process.env.MAIL_USER}>`,
           to: customer.email,
           subject: personalizedSubject,
           html: personalizedHtml.replace(/\n+/g, "").replace(/>\s+</g, "><"),
           attachments: perMailAttachments,
         });
+
+        console.log("✅ SMTP ACCEPTED", {
+          email: customer.email,
+          messageId: info.messageId,
+          accepted: info.accepted,
+          rejected: info.rejected,
+          response: info.response,
+        });
+
         successCount++;
       } catch (error) {
-        failCount++;
+        const errorInfo = classifyMailError(error);
+
+        console.error("❌ SEND FAIL:", {
+          email: customer.email,
+          reason: errorInfo.reason,
+        });
       }
       await updateMailLog(mailLog._id, {
         successCount,
         failCount,
+        status: calcStatus(successCount, failCount, totalCustomers),
       });
     }
 
-    await updateMailLog(mailLog._id, {
-      successCount,
-      failCount,
-      status:
-        successCount === 0 ? "failed" : failCount > 0 ? "partial" : "success",
-    });
-
     for (const email of externalOnlyEmails) {
+      const validMx = await hasMxRecord(email);
+
+      if (!validMx) {
+        failCount++;
+
+        await updateMailLog(mailLog._id, {
+          $push: {
+            failDetails: {
+              email,
+              reason: "Domain email không tồn tại",
+            },
+          },
+        });
+
+        continue;
+      }
+
       try {
         await transporter.sendMail({
           from: `"S-Tech" <${process.env.MAIL_USER}>`,
@@ -311,23 +356,50 @@ router.post("/send", async (req, res) => {
           attachments: mailAttachments,
         });
         successCount++;
-      } catch {
-        failCount++;
+      } catch (error) {
+        console.error("❌ RAW SMTP ERROR (external)", {
+          email,
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          response: error.response,
+          responseCode: error.responseCode,
+          command: error.command,
+          stack: error.stack,
+        });
+
+        const errorInfo = classifyMailError(error);
+
+        if (errorInfo.permanent) {
+          failCount++;
+
+          await updateMailLog(mailLog._id, {
+            $push: {
+              failDetails: {
+                email,
+                reason: errorInfo.reason,
+              },
+            },
+          });
+        }
       }
 
       await updateMailLog(mailLog._id, {
         successCount,
         failCount,
+        status: calcStatus(successCount, failCount, totalAll),
       });
     }
 
+    const finalStatus = calcStatus(successCount, failCount, totalAll);
+
     res.json({
-      success: true,
-      count: successCount,
-      message: `Đã gửi ${successCount} email`,
+      success: finalStatus !== "failed",
+      status: finalStatus,
+      successCount,
+      failCount,
     });
   } catch (err) {
-
     console.error("🔥 FATAL SEND ERROR:", {
       message: err.message,
       stack: err.stack,

@@ -11,7 +11,8 @@ export const transporter = nodemailer.createTransport({
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
   },
-  family: 4
+  family: 4,
+
 });
 
 transporter.verify((err, success) => {

@@ -53,18 +53,18 @@ router.get("/", async (req, res) => {
 });
 
 /* ================= DANH SÁCH MAIL THẤT BẠI ================= */
-router.get("/:id/failures", async (req, res) => {
-  try {
-    const mail = await MailLog.findById(req.params.id).lean();
+router.get("/:id/fails", async (req, res) => {
+  const { id } = req.params;
 
-    if (!mail) {
-      return res.status(404).json({ message: "Không tìm thấy mail" });
-    }
+  const mailLog = await MailLog.findById(id).select("failDetails");
 
-    res.json(mail.failures || []);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  if (!mailLog) {
+    return res.status(404).json({ message: "Mail log không tồn tại" });
   }
+
+  res.json({
+    items: mailLog.failDetails || [],
+  });
 });
 
 export default router;

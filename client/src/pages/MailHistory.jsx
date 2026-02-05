@@ -40,11 +40,9 @@ export default function MailHistory() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("🟢 socket connected:", socket.id);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("🔴 socket disconnected:", reason);
     });
 
     socket.on("mail:progress", (payload) => {
@@ -105,7 +103,7 @@ export default function MailHistory() {
 
       case "partial":
         return (
-          <Button label="Một phần" severity="warning" size="small" outlined />
+          <Button label="Có mail lỗi" severity="warning" size="small" outlined />
         );
 
       case "failed":
