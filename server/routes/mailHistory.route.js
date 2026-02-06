@@ -52,19 +52,50 @@ router.get("/", async (req, res) => {
   }
 });
 
-/* ================= DANH SÁCH MAIL THẤT BẠI ================= */
-router.get("/:id/fails", async (req, res) => {
-  const { id } = req.params;
+router.get("/:id", async (req, res) => {
+  try {
+    const mailLog = await MailLog.findById(req.params.id)
+      .select(
+        "subject htmlContent recipients successEmails failDetails successCount failCount createdAt"
+      )
+      .lean();
 
-  const mailLog = await MailLog.findById(id).select("failDetails");
+    if (!mailLog) {
+      return res.status(404).json({ message: "Mail log không tồn tại" });
+    }
 
-  if (!mailLog) {
-    return res.status(404).json({ message: "Mail log không tồn tại" });
+    res.json({
+      _id: mailLog._id,
+      subject: mailLog.subject,
+      htmlContent: mailLog.htmlContent,
+
+      successEmails: mailLog.successEmails || [],
+      failEmails: mailLog.failDetails || [],
+
+      successCount: mailLog.successCount || 0,
+      failCount: mailLog.failCount || 0,
+      totalCount: mailLog.recipients.length,
+
+      createdAt: mailLog.createdAt,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
-
-  res.json({
-    items: mailLog.failDetails || [],
-  });
 });
+
+/* ================= DANH SÁCH MAIL THẤT BẠI ================= */
+// router.get("/:id/fails", async (req, res) => {
+//   const { id } = req.params;
+
+//   const mailLog = await MailLog.findById(id).select("failDetails");
+
+//   if (!mailLog) {
+//     return res.status(404).json({ message: "Mail log không tồn tại" });
+//   }
+
+//   res.json({
+//     items: mailLog.failDetails || [],
+//   });
+// });
 
 export default router;

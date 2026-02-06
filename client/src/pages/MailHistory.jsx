@@ -5,6 +5,7 @@ import { Button } from "primereact/button";
 import { io } from "socket.io-client";
 
 import MailFailDialog from "../components/MailFailDialog";
+import MailSuccessDialog from "../components/MailSuccessDialog";
 import Paginator from "../components/Paginator";
 
 export default function MailHistory() {
@@ -12,7 +13,9 @@ export default function MailHistory() {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
 
   const [mails, setMails] = useState([]);
-  const [selectedMailId, setSelectedMailId] = useState(null);
+  
+  const [successMailId, setSuccessMailId] = useState(null);
+  const [failMailId, setFailMailId] = useState(null);
 
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(5);
@@ -39,11 +42,9 @@ export default function MailHistory() {
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-    });
+    socket.on("connect", () => {});
 
-    socket.on("disconnect", (reason) => {
-    });
+    socket.on("disconnect", (reason) => {});
 
     socket.on("mail:progress", (payload) => {
       const { mailLogId, successCount, failCount, status } = payload;
@@ -103,7 +104,12 @@ export default function MailHistory() {
 
       case "partial":
         return (
-          <Button label="Có mail lỗi" severity="warning" size="small" outlined />
+          <Button
+            label="Có mail lỗi"
+            severity="warning"
+            size="small"
+            outlined
+          />
         );
 
       case "failed":
@@ -147,14 +153,18 @@ export default function MailHistory() {
 
         <Column
           header="Thành công"
-          body={(row) => (
-            <Button
-              label={row.successCount}
-              severity="success"
-              size="small"
-              text
-            />
-          )}
+          body={(row) =>
+            row.successCount > 0 ? (
+              <Button
+                label={row.successCount}
+                severity="success"
+                size="small"
+                onClick={() => setSuccessMailId(row._id)}
+              />
+            ) : (
+              0
+            )
+          }
           style={{ textAlign: "center", width: "120px" }}
         />
 
@@ -183,7 +193,7 @@ export default function MailHistory() {
                 label={row.failCount}
                 severity="danger"
                 size="small"
-                onClick={() => setSelectedMailId(row._id)}
+                onClick={() => setFailMailId(row._id)}
               />
             ) : (
               0
@@ -204,10 +214,17 @@ export default function MailHistory() {
         />
       </DataTable>
 
-      {selectedMailId && (
+      {successMailId && (
+        <MailSuccessDialog
+          mailId={successMailId}
+          onHide={() => setSuccessMailId(null)}
+        />
+      )}
+
+      {failMailId && (
         <MailFailDialog
-          mailId={selectedMailId}
-          onHide={() => setSelectedMailId(null)}
+          mailId={failMailId}
+          onHide={() => setFailMailId(null)}
         />
       )}
     </>

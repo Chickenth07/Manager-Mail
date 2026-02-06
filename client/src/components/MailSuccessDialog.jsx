@@ -3,7 +3,7 @@ import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
-export default function MailFailDialog({ mailId, onHide }) {
+export default function MailSuccessDialog({ mailId, onHide }) {
   const API_URL = import.meta.env.VITE_API_URL;
 
   const [data, setData] = useState(null);
@@ -24,9 +24,9 @@ export default function MailFailDialog({ mailId, onHide }) {
 
   return (
     <Dialog
-      header="Danh sách email gửi thất bại"
+      header="Danh sách email gửi thành công"
       visible
-      style={{ width: "65vw" }}
+      style={{ width: "60vw" }}
       onHide={onHide}
     >
       <div className="mb-3">
@@ -34,19 +34,12 @@ export default function MailFailDialog({ mailId, onHide }) {
       </div>
 
       <DataTable
-        value={data.failEmails || []}
+        value={data.successEmails || []}
         loading={loading}
-        emptyMessage="Không có email thất bại"
+        emptyMessage="Không có email thành công"
         showGridlines
       >
-        <Column field="email" header="Email" style={{ width: "35%" }} />
-        <Column field="reason" header="Lý do thất bại" />
-        <Column
-          field="at"
-          header="Thời gian"
-          body={(row) => new Date(row.at).toLocaleString()}
-          style={{ width: "180px" }}
-        />
+        <Column header="Email" body={(email) => email} />
       </DataTable>
     </Dialog>
   );
