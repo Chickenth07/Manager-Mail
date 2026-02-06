@@ -1,12 +1,21 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const MONGO_URI = process.env.MONGO_URI;
 
 async function connect() {
-    try {
-        await mongoose.connect('mongodb://127.0.0.1:27017/manager_mail');
-        console.log('Kết nối thành công!!')
-    } catch (error) {
-        console.log('Kết nối thất bại!!')
-    }
+  try {
+    await mongoose.connect(MONGO_URI, {
+      autoIndex: true,
+    });
+    console.log("✅ Kết nối MongoDB thành công");
+  } catch (error) {
+    console.error("❌ Kết nối MongoDB thất bại");
+    console.error(error);
+    process.exit(1);
+  }
 }
 
 export default { connect };

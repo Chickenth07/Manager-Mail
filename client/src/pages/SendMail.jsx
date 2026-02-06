@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 
 import useCustomerStore from "../store/useCustomerStore";
@@ -14,10 +13,12 @@ import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Checkbox } from "primereact/checkbox";
-import { useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function SendMail() {
   const API_URL = import.meta.env.VITE_API_URL;
+
+  const navigate = useNavigate();
 
   const { customers, total, loading, fetchCustomers } = useCustomerStore();
 
@@ -210,6 +211,13 @@ export default function SendMail() {
       attachments,
     };
 
+    navigate("/mail-history", {
+      state: {
+        justSent: true,
+        total: selectedCount,
+      },
+    });
+
     try {
       setSending(true);
 
@@ -225,21 +233,12 @@ export default function SendMail() {
 
       if (!res.ok) throw new Error(data.message);
 
-      alert(`Đã gửi email đến ${data.count} khách hàng`);
+      alert(`Đã gửi email đến ${selectedCount} khách hàng`);
 
-      // Reset form
-      setSubject("");
-      setContent("");
-      setAttachments([]);
-      setEditorImages([]);
-      setSelectedIds([]);
-      setExcludedIds([]);
-      setExcelRows([]);
-      setSendToAll(false);
-      setPage(1);
+      return;
+      
     } catch (err) {
       alert(err.message);
-    } finally {
       setSending(false);
     }
   };
