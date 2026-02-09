@@ -16,6 +16,18 @@ const router = express.Router();
 const HTML_KEYS = ["image"];
 
 const renderTemplate = (template, data) => {
+
+  template = template.replace(
+    /\$\{(\w+):([^}]+)\}/g,
+    (_, key, content) => {
+      if (!data[key]) return "";
+      return content.replace(
+        new RegExp(`\\$${key}`, "g"),
+        escapeHtml(data[key])
+      );
+    }
+  );
+  
   // $key$ → in đậm (text)
   template = template.replace(/\$(\w+)\$/g, (_, key) => {
     if (HTML_KEYS.includes(key)) return data[key] ?? "";
