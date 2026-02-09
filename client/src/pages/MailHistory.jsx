@@ -13,7 +13,7 @@ export default function MailHistory() {
   const BASE_URL = import.meta.env.VITE_BASE_URL;
 
   const [mails, setMails] = useState([]);
-  
+
   const [successMailId, setSuccessMailId] = useState(null);
   const [failMailId, setFailMailId] = useState(null);
 
@@ -47,27 +47,34 @@ export default function MailHistory() {
     socket.on("disconnect", (reason) => {});
 
     socket.on("mail:progress", (payload) => {
-      const { mailLogId, successCount, failCount, status } = payload;
+      const { mailLogId, successCount, failCount, sendingCount, status } =
+        payload;
 
-      setMails((prev) =>
-        prev.map((mail) =>
+      console.log("📡 SOCKET PAYLOAD:", payload);
+
+      setMails((prev) => {
+        console.log("📄 BEFORE UPDATE:", prev);
+
+        const next = prev.map((mail) =>
           mail._id === mailLogId
             ? {
                 ...mail,
                 successCount,
                 failCount,
-                sendingCount: mail.recipients.length - successCount - failCount,
+                sendingCount,
                 status,
               }
             : mail
-        )
-      );
+        );
+
+        console.log("📄 AFTER UPDATE:", next);
+        return next;
+      });
     });
 
     return () => {
-      if (socket.connected) {
-        socket.disconnect();
-      }
+      socket.off("mail:progress");
+      socket.disconnect();
     };
   }, []);
 

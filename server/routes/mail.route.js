@@ -56,7 +56,6 @@ const calcStatus = (success, fail, total) => {
 
 /* ================= SEND MAIL ================= */
 router.post("/send", async (req, res) => {
-
   let customers = [];
   let emails = [];
   let mailLog = null;
@@ -144,8 +143,6 @@ router.post("/send", async (req, res) => {
 
     emails = [...new Set(emails.map((e) => e.toLowerCase()))];
 
-    console.log("📨 FINAL EMAIL COUNT:", emails.length);
-
     if (!emails.length) {
       return res.status(400).json({ message: "Không có email hợp lệ" });
     }
@@ -176,12 +173,6 @@ router.post("/send", async (req, res) => {
     });
 
     editorImages.forEach((img, index) => {
-      console.log(`🖼 editorImage[${index}]`, {
-        filename: img?.filename,
-        hasBase64: !!img?.base64,
-        base64Length: img?.base64?.length,
-      });
-
       if (!img?.base64) return;
 
       const cid = `editor-${index}@mail`;
@@ -201,30 +192,19 @@ router.post("/send", async (req, res) => {
     let failCount = 0;
 
     for (const customer of customers) {
-
       const validMx = await hasMxRecord(customer.email);
 
       if (!validMx) {
-        console.log("❌ INVALID DOMAIN:", customer.email);
-
         failCount++;
 
         await updateMailLog(mailLog._id, {
-          $push: {
-            failDetails: {
-              email: customer.email,
-              reason: "Domain email không tồn tại",
-            },
+          fail: {
+            email: customer.email,
+            reason: "Domain email không tồn tại",
           },
         });
 
-        await updateMailLog(mailLog._id, {
-          successCount,
-          failCount,
-          status: calcStatus(successCount, failCount, totalCustomers),
-        });
-
-        continue; 
+        continue;
       }
 
       try {
@@ -305,28 +285,25 @@ router.post("/send", async (req, res) => {
           attachments: perMailAttachments,
         });
 
-        console.log("✅ SMTP ACCEPTED", {
-          email: customer.email,
-          messageId: info.messageId,
-          accepted: info.accepted,
-          rejected: info.rejected,
-          response: info.response,
-        });
-
         successCount++;
+
+        await updateMailLog(mailLog._id, {
+          success: {
+            email: customer.email,
+          },
+        });
       } catch (error) {
         const errorInfo = classifyMailError(error);
 
-        console.error("❌ SEND FAIL:", {
-          email: customer.email,
-          reason: errorInfo.reason,
+        failCount++;
+
+        await updateMailLog(mailLog._id, {
+          fail: {
+            email: customer.email,
+            reason: errorInfo.reason,
+          },
         });
       }
-      await updateMailLog(mailLog._id, {
-        successCount,
-        failCount,
-        status: calcStatus(successCount, failCount, totalCustomers),
-      });
     }
 
     for (const email of externalOnlyEmails) {
@@ -356,18 +333,13 @@ router.post("/send", async (req, res) => {
           attachments: mailAttachments,
         });
         successCount++;
-      } catch (error) {
-        console.error("❌ RAW SMTP ERROR (external)", {
-          email,
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          response: error.response,
-          responseCode: error.responseCode,
-          command: error.command,
-          stack: error.stack,
-        });
 
+        await updateMailLog(mailLog._id, {
+          success: {
+            email: customer.email,
+          },
+        });
+      } catch (error) {
         const errorInfo = classifyMailError(error);
 
         if (errorInfo.permanent) {
@@ -383,12 +355,6 @@ router.post("/send", async (req, res) => {
           });
         }
       }
-
-      await updateMailLog(mailLog._id, {
-        successCount,
-        failCount,
-        status: calcStatus(successCount, failCount, totalAll),
-      });
     }
 
     const finalStatus = calcStatus(successCount, failCount, totalAll);
@@ -400,11 +366,6 @@ router.post("/send", async (req, res) => {
       failCount,
     });
   } catch (err) {
-    console.error("🔥 FATAL SEND ERROR:", {
-      message: err.message,
-      stack: err.stack,
-    });
-
     if (mailLog?._id) {
       await updateMailLog(mailLog._id, {
         status: "failed",

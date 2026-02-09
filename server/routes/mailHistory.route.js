@@ -15,35 +15,41 @@ router.get("/", async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .select("subject recipients successDetails failDetails status createdAt")
         .lean(),
       MailLog.countDocuments(),
     ]);
 
     const items = rawItems.map((mail) => {
       const totalCount = mail.recipients.length;
-      const successCount = mail.successCount || 0;
-      const failCount = mail.failCount || 0;
+      const successCount = mail.successDetails.length;
+      const failCount = mail.failDetails.length;
 
       const sendingCount = Math.max(
         totalCount - successCount - failCount,
         0
       );
 
-      // chuẩn hoá status theo dữ liệu thực
-      let status = "processing";
-
-      if (sendingCount === 0) {
-        if (failCount === 0) status = "success";
-        else if (successCount === 0) status = "failed";
-        else status = "partial";
-      }
-
       return {
-        ...mail,
-        totalCount,
+        _id: mail._id,
+        subject: mail.subject,
+
+        successCount,
+        failCount,
         sendingCount,
-        status,
+
+        status: mail.status,
+        createdAt: mail.createdAt,
       };
+    });
+
+    rawItems.forEach((mail) => {
+      console.log("📦 HISTORY ITEM:", {
+        id: mail._id.toString(),
+        recipients: mail.recipients.length,
+        successDetails: mail.successDetails.length,
+        failDetails: mail.failDetails.length,
+      });
     });
 
     res.json({ items, total });
@@ -56,7 +62,7 @@ router.get("/:id", async (req, res) => {
   try {
     const mailLog = await MailLog.findById(req.params.id)
       .select(
-        "subject htmlContent recipients successEmails failDetails successCount failCount createdAt"
+        "subject content recipients successDetails failDetails status createdAt"
       )
       .lean();
 
@@ -64,38 +70,43 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Mail log không tồn tại" });
     }
 
+    const totalCount = mailLog.recipients.length;
+    const successCount = mailLog.successDetails.length;
+    const failCount = mailLog.failDetails.length;
+    const sendingCount = Math.max(
+      totalCount - successCount - failCount,
+      0
+    );
+
+    console.log("➡️ MAIL LOG DETAIL:", {
+      id: mailLog._id.toString(),
+      totalCount,
+      successCount,
+      failCount,
+      sendingCount,
+      status: mailLog.status,
+    });
+
     res.json({
       _id: mailLog._id,
       subject: mailLog.subject,
-      htmlContent: mailLog.htmlContent,
+      htmlContent: mailLog.content,
 
-      successEmails: mailLog.successEmails || [],
-      failEmails: mailLog.failDetails || [],
+      successEmails: mailLog.successDetails.map((x) => x.email),
+      failEmails: mailLog.failDetails, // giữ nguyên để xem error reason
 
-      successCount: mailLog.successCount || 0,
-      failCount: mailLog.failCount || 0,
-      totalCount: mailLog.recipients.length,
+      totalCount,
+      successCount,
+      failCount,
+      sendingCount,
 
+      status: mailLog.status,
       createdAt: mailLog.createdAt,
     });
   } catch (err) {
+    console.error("❌ GET MAIL LOG ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 });
-
-/* ================= DANH SÁCH MAIL THẤT BẠI ================= */
-// router.get("/:id/fails", async (req, res) => {
-//   const { id } = req.params;
-
-//   const mailLog = await MailLog.findById(id).select("failDetails");
-
-//   if (!mailLog) {
-//     return res.status(404).json({ message: "Mail log không tồn tại" });
-//   }
-
-//   res.json({
-//     items: mailLog.failDetails || [],
-//   });
-// });
 
 export default router;

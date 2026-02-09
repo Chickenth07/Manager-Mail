@@ -146,7 +146,6 @@ export default function SendMail() {
 
   /* ================= HANDLE ATTACHMENT FILES ================= */
   const handleAttachmentFiles = (files) => {
-    console.log("ATTACH FILES:", files);
     if (!Array.isArray(files)) return;
 
     files.forEach((file) => {

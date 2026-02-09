@@ -17,21 +17,28 @@ const MailLogSchema = new mongoose.Schema(
       default: [],
     },
 
-    successCount: {
-      type: Number,
-      default: 0,
-    },
-
-    failCount: {
-      type: Number,
-      default: 0,
-    },
-
     status: {
       type: String,
       enum: ["processing", "success", "failed", "partial"],
       default: "processing",
     },
+
+    // successCount: {
+    //   type: Number,
+    //   default: 0,
+    // },
+
+    // failCount: {
+    //   type: Number,
+    //   default: 0,
+    // },
+
+    successDetails: [
+      {
+        email: String,
+        at: { type: Date, default: Date.now },
+      },
+    ],
 
     failDetails: [
       {
