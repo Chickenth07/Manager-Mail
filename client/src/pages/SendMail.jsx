@@ -235,7 +235,6 @@ export default function SendMail() {
       alert(`Đã gửi email đến ${selectedCount} khách hàng`);
 
       return;
-      
     } catch (err) {
       alert(err.message);
       setSending(false);
@@ -248,15 +247,28 @@ export default function SendMail() {
       <h2 className="text-xl font-semibold mb-4">Gửi email cho khách hàng</h2>
       {/* ===== FORM ===== */}
       <div className="mb-6 max-w-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <label className="font-medium">Import danh sách từ Excel</label>
 
-        <div className="mb-4">
-          <label className="block mb-2 font-medium">
-            Import danh sách từ Excel
-          </label>
+          <div>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleExcelUpload}
+              id="excel-upload"
+              className="hidden"
+            />
 
-          <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} />
+            <button
+              type="button"
+              onClick={() => document.getElementById("excel-upload").click()}
+              className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Chọn file
+            </button>
+          </div>
         </div>
-
+        
         <div className="field mb-3">
           <label>Tiêu đề email</label>
           <InputText

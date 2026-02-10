@@ -32,17 +32,6 @@ export default function Sidebar({ collapsed }) {
         </NavLink>
 
         <NavLink
-          to="/send-mail"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded
-            ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
-          }
-        >
-          <i className="pi pi-envelope text-lg" />
-          {!collapsed && "Gửi Mail"}
-        </NavLink>
-
-        <NavLink
           to="/template"
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded
@@ -62,6 +51,17 @@ export default function Sidebar({ collapsed }) {
         >
           <i className="pi pi-image text-lg" />
           {!collapsed && "Thư Viện Ảnh"}
+        </NavLink>
+
+        <NavLink
+          to="/send-mail"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded
+            ${isActive ? "bg-slate-800" : "hover:bg-slate-800"}`
+          }
+        >
+          <i className="pi pi-envelope text-lg" />
+          {!collapsed && "Gửi Mail"}
         </NavLink>
         
         <NavLink
