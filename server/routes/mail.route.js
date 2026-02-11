@@ -15,6 +15,19 @@ const router = express.Router();
 
 const HTML_KEYS = ["image"];
 
+const normalizeGender = (value) => {
+  if (value === null || value === undefined) return "Anh/Chị";
+
+  const v = value.toString().trim().toLowerCase();
+
+  if (v === "") return "Anh/Chị";
+  if (["nam", "male", "m"].includes(v)) return "Anh";
+  if (["nữ", "nu", "female", "f"].includes(v)) return "Chị";
+  if (["other"].includes(v)) return "Anh/Chị";
+
+  return value;
+};
+
 const renderTemplate = (template, data) => {
 
   template = template.replace(
@@ -41,12 +54,6 @@ const renderTemplate = (template, data) => {
   });
 
   return template;
-};
-
-const GENDER_LABEL_MAP = {
-  male: "Ông",
-  female: "Bà",
-  other: "Ông/Bà",
 };
 
 const escapeHtml = (text) => {
@@ -85,6 +92,8 @@ router.post("/send", async (req, res) => {
       attachments = [],
     } = req.body;
 
+    console.log("EXCEL ROW SAMPLE:", excelRows[0]);
+
     if (!subject || !content) {
       return res.status(400).json({ message: "Thiếu subject hoặc content" });
     }
@@ -104,7 +113,7 @@ router.post("/send", async (req, res) => {
         .map((r, index) => ({
           _id: `excel-${index}`,
           name: r.name || "",
-          gender: r.gender || "",
+          gender: normalizeGender(r.gender) || "",
           company: r.company || "",
           title: r.title || "",
           email: r.email,
@@ -279,7 +288,7 @@ router.post("/send", async (req, res) => {
 
         const data = {
           name: customer.name,
-          gender: GENDER_LABEL_MAP[customer.gender] ?? "",
+          gender: customer.gender,
           company: customer.company,
           title: customer.title,
           email: customer.email,

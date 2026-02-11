@@ -177,6 +177,7 @@ export default function SendMail() {
       const mappedRows = rawRows.map((r) => ({
         email: r["$mail"] || "",
         name: r["$name"] || "",
+        gender: r["$gender"] || "",
         title: r["$title"] || "",
         image: r["$image"] || "",
       }));
